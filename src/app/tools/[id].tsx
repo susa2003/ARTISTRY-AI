@@ -7,7 +7,7 @@ import { Canvas, Image as SkiaImage, ImageFormat, Skia, useCanvasRef, useImage }
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { AppHeader, Button, Eyebrow, InfoCard, Screen } from "../../components/AppUI";
 import { FEATURES } from "../../domain/features";
-import type { ToolId } from "../../domain/types";
+import type { DrawingAnalysisRecord, ToolId } from "../../domain/types";
 import { analyzePixels } from "../../features/analysis/localAnalysis";
 import { chooseImageFromDocuments, choosePhotoFromSystemPicker } from "../../features/images/pickImage";
 import {
@@ -73,6 +73,54 @@ import {
   type DailyChallenge,
   type Lesson,
 } from "../../features/learning/LearningCenter";
+import { ReferenceGeneratorView } from "../../features/generator/ReferenceGeneratorView";
+import { DrawingProgressView } from "../../features/progress/DrawingProgressView";
+import { ArtMentorView } from "../../features/mentor/ArtMentorView";
+import { StrokeReplayView } from "../../features/replay/StrokeReplayView";
+import { MultiAngleView } from "../../features/turnaround/MultiAngleView";
+import { ColorRecommendationView } from "../../features/colorrec/ColorRecommendationView";
+import { MistakeDetectorView } from "../../features/mistakes/MistakeDetectorView";
+import { VectorConverterView } from "../../features/vectorizer/VectorConverterView";
+import { LineArtCleanerView } from "../../features/linecleaner/LineArtCleanerView";
+import { ObjectSeparationView } from "../../features/segmentation/ObjectSeparationView";
+import {
+  DEFAULT_SKETCH_OPTIONS,
+  SKETCH_STYLES,
+  convertSketchGuideToStrokes,
+  processSketch,
+} from "../../features/sketch/SketchConverterEngine";
+import {
+  POSE_PRESETS,
+  convertPoseToStrokes,
+  detectPoseLandmarks,
+} from "../../features/pose/PoseCoachEngine";
+import { PoseCoachSkiaOverlay } from "../../features/pose/PoseCoachSkiaOverlay";
+import {
+  analyzeHandOrFoot,
+  convertHandFootToStrokes,
+} from "../../features/handfoot/HandFootEngine";
+import { HandFootSkiaOverlay } from "../../features/handfoot/HandFootSkiaOverlay";
+import {
+  convertLightingToStrokes,
+  detectLighting,
+} from "../../features/lighting/LightingPredictorEngine";
+import { LightingSkiaOverlay } from "../../features/lighting/LightingSkiaOverlay";
+import {
+  analyzeCompositionFidelity,
+  convertCompositionToStrokes,
+} from "../../features/composition/CompositionCoachEngine";
+import { CompositionSkiaOverlay } from "../../features/composition/CompositionSkiaOverlay";
+import {
+  fetchAnalysisHistory,
+  runDrawingAnalysis,
+} from "../../features/analyzer/DrawingAnalyzerEngine";
+import type {
+  CompositionResult,
+  HandFootResult,
+  LightingResult,
+  PoseResult,
+  SketchConvertOptions,
+} from "../../services/ai/types";
 import { useAppStore } from "../../state/appStore";
 import { cacheSelectedImage, copyProjectExport } from "../../storage/imageFiles";
 import { colors } from "../../theme";
@@ -91,6 +139,20 @@ const validIds: ToolId[] = [
   "compare",
   "library",
   "learning",
+  "generator",
+  "progress",
+  "pose",
+  "handfoot",
+  "lighting",
+  "composition",
+  "linecleaner",
+  "segmentation",
+  "colorrec",
+  "turnaround",
+  "replay",
+  "mistakes",
+  "mentor",
+  "vectorizer",
 ];
 
 const AI_ENDPOINT = process.env.EXPO_PUBLIC_AI_API_URL?.trim();
@@ -112,6 +174,8 @@ export default function ToolScreen() {
   const lessonProgress = useAppStore((state) => state.lessonProgress);
   const toggleLessonCompletion = useAppStore((state) => state.toggleLessonCompletion);
   const loadLearningProgress = useAppStore((state) => state.loadLearningProgress);
+  const experienceMode = useAppStore((state) => state.experienceMode);
+  const setExperienceMode = useAppStore((state) => state.setExperienceMode);
   const { width: screenWidth } = useWindowDimensions();
 
   useEffect(() => {
@@ -135,6 +199,17 @@ export default function ToolScreen() {
   const [shadingConfig, setShadingConfig] = useState<ShadingConfig>(DEFAULT_SHADING_CONFIG);
   const [comparisonConfig, setComparisonConfig] = useState<ComparisonConfig>(DEFAULT_COMPARISON_CONFIG);
 
+  // Phase 4 states
+  const [sketchOptions, setSketchOptions] = useState<SketchConvertOptions>(DEFAULT_SKETCH_OPTIONS);
+  const [poseResult, setPoseResult] = useState<PoseResult | null>(null);
+  const [poseShowLoa, setPoseShowLoa] = useState(true);
+  const [handFootResult, setHandFootResult] = useState<HandFootResult | null>(null);
+  const [handFootType, setHandFootType] = useState<"hand" | "foot">("hand");
+  const [lightingResult, setLightingResult] = useState<LightingResult | null>(null);
+  const [compositionResult, setCompositionResult] = useState<CompositionResult | null>(null);
+  const [compositionGridMode, setCompositionGridMode] = useState<"thirds" | "golden_spiral" | "diagonal">("thirds");
+  const [drawingAnalysis, setDrawingAnalysis] = useState<DrawingAnalysisRecord | null>(null);
+
   // Comparison & Difference states
   const [compareDrawingUri, setCompareDrawingUri] = useState<string | null>(null);
   const compareDrawingImage = useImage(compareDrawingUri ?? undefined);
@@ -154,7 +229,26 @@ export default function ToolScreen() {
   const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null);
   const todayChallenge = useMemo(() => getTodayChallenge(), []);
 
-  const allowsBlankPractice = ["loomis", "grid", "anatomy", "perspective"].includes(tool);
+  const allowsBlankPractice = [
+    "loomis",
+    "grid",
+    "anatomy",
+    "perspective",
+    "generator",
+    "progress",
+    "pose",
+    "handfoot",
+    "lighting",
+    "composition",
+    "turnaround",
+    "replay",
+    "mentor",
+    "vectorizer",
+    "colorrec",
+    "sketch",
+    "analyzer",
+    "mistakes",
+  ].includes(tool);
   const sourceImage = useImage(previewUri ?? undefined);
   const processRequested = Boolean((reference && requestedReferenceId === reference.id) || allowsBlankPractice);
 
@@ -228,6 +322,33 @@ export default function ToolScreen() {
     : Math.min(Math.max(220, screenWidth - 48), 380);
   const stageHeight = reference ? stageWidth * (reference.height / Math.max(1, reference.width)) : Math.round(stageWidth * 1.35);
   const stageH = Math.min(620, stageHeight);
+
+  // Auto-initialize Phase 4 AI analysis models
+  useEffect(() => {
+    if (tool === "pose" && !poseResult) {
+      void detectPoseLandmarks(previewUri ?? undefined, stageWidth, stageH).then(setPoseResult);
+    }
+    if (tool === "handfoot" && (!handFootResult || handFootResult.type !== handFootType)) {
+      void analyzeHandOrFoot(handFootType, previewUri ?? undefined, stageWidth, stageH).then(setHandFootResult);
+    }
+    if (tool === "lighting" && !lightingResult) {
+      void detectLighting(previewUri ?? undefined, pixels, stageWidth, stageH).then(setLightingResult);
+    }
+    if (tool === "composition" && !compositionResult) {
+      void analyzeCompositionFidelity(previewUri ?? undefined, pixels, stageWidth, stageH).then(setCompositionResult);
+    }
+    if (tool === "analyzer" && !drawingAnalysis) {
+      void runDrawingAnalysis(
+        {
+          drawingPixels: pixels,
+          width: stageWidth,
+          height: stageH,
+          drawingUri: previewUri ?? undefined,
+        },
+        currentProject?.id
+      ).then(setDrawingAnalysis);
+    }
+  }, [tool, previewUri, pixels, stageWidth, stageH, handFootType]);
 
   // --- INTERACTIVE TOUCH GESTURES (PERSPECTIVE & COMPARISON) ---
   const perspectivePanGesture = useMemo(() => {
@@ -447,6 +568,105 @@ export default function ToolScreen() {
       );
     } catch {
       Alert.alert("Could not send perspective grid", "Check available storage.");
+    }
+  };
+
+  const sendPoseToCanvas = async () => {
+    if (!poseResult) return;
+    try {
+      let projectId = currentProject?.id;
+      if (!projectId) {
+        projectId = await createProject(reference?.uri ?? null, `Pose Study - ${new Date().toLocaleDateString()}`);
+      }
+      const strokes = convertPoseToStrokes(poseResult);
+      importStrokesToLayer("Pose & Gesture Guides", strokes);
+      Alert.alert(
+        "Pose Skeleton Sent to Canvas!",
+        "33-point landmarks and dynamic Line of Action added as an editable layer.",
+        [{ text: "Open Studio Canvas", onPress: () => router.push(`/studio/${projectId}`) }, { text: "Keep Editing" }]
+      );
+    } catch {
+      Alert.alert("Could not send pose guides", "Check available storage.");
+    }
+  };
+
+  const sendHandFootToCanvas = async () => {
+    if (!handFootResult) return;
+    try {
+      let projectId = currentProject?.id;
+      if (!projectId) {
+        projectId = await createProject(reference?.uri ?? null, `${handFootType === "hand" ? "Hand" : "Foot"} Study - ${new Date().toLocaleDateString()}`);
+      }
+      const strokes = convertHandFootToStrokes(handFootResult);
+      importStrokesToLayer(`${handFootType === "hand" ? "Hand" : "Foot"} Landmarks`, strokes);
+      Alert.alert(
+        "Hand/Foot Guides Sent to Canvas!",
+        "Anatomical segment proportions and joint root arches added as an editable layer.",
+        [{ text: "Open Studio Canvas", onPress: () => router.push(`/studio/${projectId}`) }, { text: "Keep Editing" }]
+      );
+    } catch {
+      Alert.alert("Could not send guides", "Check available storage.");
+    }
+  };
+
+  const sendLightingToCanvas = async () => {
+    if (!lightingResult) return;
+    try {
+      let projectId = currentProject?.id;
+      if (!projectId) {
+        projectId = await createProject(reference?.uri ?? null, `Lighting Study - ${new Date().toLocaleDateString()}`);
+      }
+      const canvasW = currentProject?.width ?? 1000;
+      const canvasH = currentProject?.height ?? 1400;
+      const strokes = convertLightingToStrokes(lightingResult, canvasW, canvasH);
+      importStrokesToLayer(`Light Vector (${lightingResult.primaryLightAngle}°)`, strokes);
+      Alert.alert(
+        "Lighting Guides Sent to Canvas!",
+        "Directional light ray and highlight/core shadow zones added as an editable layer.",
+        [{ text: "Open Studio Canvas", onPress: () => router.push(`/studio/${projectId}`) }, { text: "Keep Editing" }]
+      );
+    } catch {
+      Alert.alert("Could not send lighting guide", "Check available storage.");
+    }
+  };
+
+  const sendCompositionToCanvas = async () => {
+    try {
+      let projectId = currentProject?.id;
+      if (!projectId) {
+        projectId = await createProject(reference?.uri ?? null, `Composition Study - ${new Date().toLocaleDateString()}`);
+      }
+      const canvasW = currentProject?.width ?? 1000;
+      const canvasH = currentProject?.height ?? 1400;
+      const strokes = convertCompositionToStrokes(canvasW, canvasH, compositionGridMode);
+      importStrokesToLayer(`Composition ${compositionGridMode}`, strokes);
+      Alert.alert(
+        "Composition Grid Sent to Canvas!",
+        `${compositionGridMode.replace("_", " ")} alignment guide added as an editable layer.`,
+        [{ text: "Open Studio Canvas", onPress: () => router.push(`/studio/${projectId}`) }, { text: "Keep Editing" }]
+      );
+    } catch {
+      Alert.alert("Could not send composition grid", "Check available storage.");
+    }
+  };
+
+  const sendSketchToCanvas = async () => {
+    try {
+      let projectId = currentProject?.id;
+      if (!projectId) {
+        projectId = await createProject(reference?.uri ?? null, `Sketch Study (${sketchOptions.style})`);
+      }
+      const canvasW = currentProject?.width ?? 1000;
+      const canvasH = currentProject?.height ?? 1400;
+      const strokes = convertSketchGuideToStrokes(canvasW, canvasH, sketchOptions.style);
+      importStrokesToLayer(`Sketch Contours (${sketchOptions.style})`, strokes);
+      Alert.alert(
+        "Sketch Contours Sent to Canvas!",
+        `${sketchOptions.style} style contour guides added as an editable layer.`,
+        [{ text: "Open Studio Canvas", onPress: () => router.push(`/studio/${projectId}`) }, { text: "Keep Editing" }]
+      );
+    } catch {
+      Alert.alert("Could not send sketch contours", "Check available storage.");
     }
   };
 
@@ -692,6 +912,18 @@ export default function ToolScreen() {
     );
   }
 
+  // --- SPECIAL VIEWS: PHASE 4 AI ECOSYSTEM TOOLS ---
+  if (tool === "generator") return <ReferenceGeneratorView />;
+  if (tool === "progress") return <DrawingProgressView />;
+  if (tool === "mentor") return <ArtMentorView />;
+  if (tool === "replay") return <StrokeReplayView />;
+  if (tool === "turnaround") return <MultiAngleView />;
+  if (tool === "colorrec") return <ColorRecommendationView />;
+  if (tool === "mistakes") return <MistakeDetectorView />;
+  if (tool === "vectorizer") return <VectorConverterView />;
+  if (tool === "linecleaner") return <LineArtCleanerView />;
+  if (tool === "segmentation") return <ObjectSeparationView />;
+
   // --- CHECK REFERENCE FOR IMAGE-BASED TOOLS ---
   if (!reference && !allowsBlankPractice) {
     return (
@@ -776,6 +1008,36 @@ export default function ToolScreen() {
           matchScore={matchScore}
         />
       ) : null}
+      {tool === "pose" && poseResult ? (
+        <PoseCoachSkiaOverlay
+          pose={poseResult}
+          width={stageWidth}
+          height={stageH}
+          showLineOfAction={poseShowLoa}
+        />
+      ) : null}
+      {tool === "handfoot" && handFootResult ? (
+        <HandFootSkiaOverlay
+          result={handFootResult}
+          width={stageWidth}
+          height={stageH}
+        />
+      ) : null}
+      {tool === "lighting" && lightingResult ? (
+        <LightingSkiaOverlay
+          lighting={lightingResult}
+          width={stageWidth}
+          height={stageH}
+        />
+      ) : null}
+      {tool === "composition" && compositionResult ? (
+        <CompositionSkiaOverlay
+          result={compositionResult}
+          width={stageWidth}
+          height={stageH}
+          showThirds={compositionGridMode === "thirds"}
+        />
+      ) : null}
     </Canvas>
   );
 
@@ -804,6 +1066,27 @@ export default function ToolScreen() {
       <Text style={styles.note}>
         {feature.detail} Your selected working copy stays on this device unless you choose the connected AI action below.
       </Text>
+
+      {/* Experience Tier Selector (Beginner vs Professional) */}
+      <View style={styles.tierToggleRow}>
+        <Text style={styles.tierLabel}>Experience Tier:</Text>
+        <Pressable
+          onPress={() => void setExperienceMode("beginner")}
+          style={[styles.tierPill, experienceMode === "beginner" && styles.tierPillActive]}
+        >
+          <Text style={[styles.tierPillText, experienceMode === "beginner" && styles.tierPillTextActive]}>
+            Beginner Mode
+          </Text>
+        </Pressable>
+        <Pressable
+          onPress={() => void setExperienceMode("professional")}
+          style={[styles.tierPill, experienceMode === "professional" && styles.tierPillActive]}
+        >
+          <Text style={[styles.tierPillText, experienceMode === "professional" && styles.tierPillTextActive]}>
+            Professional Mode
+          </Text>
+        </Pressable>
+      </View>
 
       {/* --- PREVIEW STAGE CANVAS WITH DIRECT TOUCH GESTURES --- */}
       <View style={styles.previewOuter}>
@@ -1476,6 +1759,364 @@ export default function ToolScreen() {
         </InfoCard>
       )}
 
+      {/* =========================================================================
+          MODULE 8: AI SKETCH CONVERTER (8 STYLES & GRANULAR SLIDERS)
+          ========================================================================= */}
+      {tool === "sketch" && (
+        <InfoCard style={styles.studioCard}>
+          <View style={styles.studioCardHeader}>
+            <Eyebrow>ARTISTIC CONVERSION & LINEWORK</Eyebrow>
+            <Text style={styles.studioTitle}>AI Sketch Converter</Text>
+            <Text style={styles.studioSubtitle}>Transform photos into genuine graphite, charcoal, ink & watercolor studies</Text>
+          </View>
+
+          {/* Style Selector */}
+          <Text style={styles.controlHeading}>SELECT ARTISTIC STYLE</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryScroll}>
+            {SKETCH_STYLES.map((s) => {
+              const active = sketchOptions.style === s.id;
+              return (
+                <Pressable
+                  key={s.id}
+                  onPress={() => setSketchOptions((prev) => ({ ...prev, style: s.id }))}
+                  style={[styles.catPill, active && styles.catPillActive]}
+                >
+                  <Text style={[styles.catPillText, active && styles.catPillTextActive]}>{s.name}</Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+
+          {/* Sliders */}
+          <View style={styles.sliderRow}>
+            <Text style={styles.sliderLabel}>Intensity: {sketchOptions.intensity}%</Text>
+            <View style={styles.sliderButtons}>
+              <Pressable onPress={() => setSketchOptions((o) => ({ ...o, intensity: Math.max(10, o.intensity - 15) }))} style={styles.stepBtn}>
+                <Text style={styles.stepBtnText}>− Lighter</Text>
+              </Pressable>
+              <Pressable onPress={() => setSketchOptions((o) => ({ ...o, intensity: 75 }))} style={[styles.stepBtn, styles.stepBtnCenter]}>
+                <Text style={styles.stepBtnText}>Default</Text>
+              </Pressable>
+              <Pressable onPress={() => setSketchOptions((o) => ({ ...o, intensity: Math.min(100, o.intensity + 15) }))} style={styles.stepBtn}>
+                <Text style={styles.stepBtnText}>+ Bolder</Text>
+              </Pressable>
+            </View>
+          </View>
+
+          <View style={styles.sliderRow}>
+            <Text style={styles.sliderLabel}>Contrast: {sketchOptions.contrast}%</Text>
+            <View style={styles.sliderButtons}>
+              <Pressable onPress={() => setSketchOptions((o) => ({ ...o, contrast: Math.max(10, o.contrast - 10) }))} style={styles.stepBtn}>
+                <Text style={styles.stepBtnText}>− Soft</Text>
+              </Pressable>
+              <Pressable onPress={() => setSketchOptions((o) => ({ ...o, contrast: 60 }))} style={[styles.stepBtn, styles.stepBtnCenter]}>
+                <Text style={styles.stepBtnText}>Default</Text>
+              </Pressable>
+              <Pressable onPress={() => setSketchOptions((o) => ({ ...o, contrast: Math.min(100, o.contrast + 10) }))} style={styles.stepBtn}>
+                <Text style={styles.stepBtnText}>+ Hard</Text>
+              </Pressable>
+            </View>
+          </View>
+
+          {experienceMode === "professional" && (
+            <>
+              <View style={styles.sliderRow}>
+                <Text style={styles.sliderLabel}>Detail Level: {sketchOptions.detailLevel}%</Text>
+                <View style={styles.sliderButtons}>
+                  <Pressable onPress={() => setSketchOptions((o) => ({ ...o, detailLevel: Math.max(20, o.detailLevel - 15) }))} style={styles.stepBtn}>
+                    <Text style={styles.stepBtnText}>− Coarse</Text>
+                  </Pressable>
+                  <Pressable onPress={() => setSketchOptions((o) => ({ ...o, detailLevel: 70 }))} style={[styles.stepBtn, styles.stepBtnCenter]}>
+                    <Text style={styles.stepBtnText}>Default</Text>
+                  </Pressable>
+                  <Pressable onPress={() => setSketchOptions((o) => ({ ...o, detailLevel: Math.min(100, o.detailLevel + 15) }))} style={styles.stepBtn}>
+                    <Text style={styles.stepBtnText}>+ Fine</Text>
+                  </Pressable>
+                </View>
+              </View>
+            </>
+          )}
+
+          <Button
+            title="Send Sketch Contours to Canvas Layer"
+            icon="✎"
+            tone="soft"
+            onPress={() => void sendSketchToCanvas()}
+            style={styles.fullButton}
+          />
+        </InfoCard>
+      )}
+
+      {/* =========================================================================
+          MODULE 9: AI DRAWING ANALYZER (MULTI-FACTOR DIAGNOSTICS & ANNOTATIONS)
+          ========================================================================= */}
+      {tool === "analyzer" && (
+        <InfoCard style={styles.studioCard}>
+          <View style={styles.studioCardHeader}>
+            <Eyebrow>COMPREHENSIVE ART DIAGNOSTICS</Eyebrow>
+            <Text style={styles.studioTitle}>AI Drawing Analyzer</Text>
+            <Text style={styles.studioSubtitle}>Multi-factor anatomical, perspective, tonal and alignment assessment</Text>
+          </View>
+
+          {drawingAnalysis && (
+            <>
+              {/* Overall Score */}
+              <View style={styles.matchScoreBadge}>
+                <View>
+                  <Text style={styles.matchScoreText}>🎯 Overall Fidelity Score</Text>
+                  <Text style={styles.matchLegendText}>Calculated across 5 foundational drawing pillars</Text>
+                </View>
+                <Text style={styles.matchScorePercent}>{drawingAnalysis.overallScore}%</Text>
+              </View>
+
+              {/* Multi-Factor Metrics */}
+              <View style={{ gap: 8, marginVertical: 10 }}>
+                {[
+                  { label: "Proportions & Scaling", score: drawingAnalysis.proportionsScore },
+                  { label: "Linework & Alignment", score: drawingAnalysis.alignmentScore },
+                  { label: "Perspective Convergence", score: drawingAnalysis.perspectiveScore },
+                  { label: "Composition & Weight", score: drawingAnalysis.compositionScore },
+                  { label: "Form Shading & Values", score: drawingAnalysis.shadingScore },
+                ].map((m) => (
+                  <View key={m.label} style={{ gap: 3 }}>
+                    <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+                      <Text style={{ fontSize: 11, color: colors.charcoal, fontWeight: "600" }}>{m.label}</Text>
+                      <Text style={{ fontSize: 11, fontWeight: "700", color: colors.forest }}>{m.score}%</Text>
+                    </View>
+                    <View style={{ height: 6, backgroundColor: "#EBE5D8", borderRadius: 3, overflow: "hidden" }}>
+                      <View style={{ height: "100%", width: `${m.score}%`, backgroundColor: m.score >= 75 ? colors.forest : colors.terracotta, borderRadius: 3 }} />
+                    </View>
+                  </View>
+                ))}
+              </View>
+
+              {/* Feedback Points */}
+              <View style={{ backgroundColor: "#F9F6F0", padding: 12, borderRadius: 8, marginVertical: 8 }}>
+                <Text style={{ fontSize: 12, fontWeight: "700", color: colors.charcoal, marginBottom: 6 }}>Diagnostic Insights:</Text>
+                {drawingAnalysis.feedback.map((f: string, i: number) => (
+                  <Text key={i} style={{ fontSize: 11, color: colors.inkMuted, lineHeight: 16, marginBottom: 4 }}>• {f}</Text>
+                ))}
+              </View>
+            </>
+          )}
+
+          <Button
+            title="Refresh Diagnostic Analysis"
+            icon="✦"
+            tone="line"
+            onPress={() => {
+              void runDrawingAnalysis({
+                drawingPixels: pixels,
+                width: stageWidth,
+                height: stageH,
+                drawingUri: previewUri ?? undefined,
+              }, currentProject?.id).then(setDrawingAnalysis);
+            }}
+            style={styles.fullButton}
+          />
+        </InfoCard>
+      )}
+
+      {/* =========================================================================
+          MODULE 10: AI POSE & GESTURE COACH
+          ========================================================================= */}
+      {tool === "pose" && (
+        <InfoCard style={styles.studioCard}>
+          <View style={styles.studioCardHeader}>
+            <Eyebrow>33 SKELETAL LANDMARKS & ACTION CURVES</Eyebrow>
+            <Text style={styles.studioTitle}>AI Pose & Gesture Coach</Text>
+            <Text style={styles.studioSubtitle}>Dynamic Line of Action, joint anchors & contrapposto balance</Text>
+          </View>
+
+          {/* Presets */}
+          <Text style={styles.controlHeading}>GESTURAL POSE PRESETS</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryScroll}>
+            {POSE_PRESETS.map((p) => (
+              <Pressable
+                key={p.id}
+                onPress={() => {
+                  void detectPoseLandmarks(previewUri ?? undefined, stageWidth, stageH).then(setPoseResult);
+                }}
+                style={styles.catPill}
+              >
+                <Text style={styles.catPillText}>{p.name}</Text>
+              </Pressable>
+            ))}
+          </ScrollView>
+
+          {/* Line of Action Toggle */}
+          <View style={styles.sliderRow}>
+            <Text style={styles.sliderLabel}>Line of Action Curve (Teal):</Text>
+            <View style={styles.sliderButtons}>
+              <Pressable onPress={() => setPoseShowLoa(!poseShowLoa)} style={[styles.stepBtn, poseShowLoa && styles.stepBtnCenter]}>
+                <Text style={styles.stepBtnText}>{poseShowLoa ? "Visible" : "Hidden"}</Text>
+              </Pressable>
+            </View>
+          </View>
+
+          {poseResult && (
+            <View style={{ backgroundColor: "#F7F3E9", padding: 10, borderRadius: 8, marginVertical: 8 }}>
+              <Text style={{ fontSize: 11, fontWeight: "700", color: colors.forest }}>Anatomical Balance:</Text>
+              <Text style={{ fontSize: 11, color: colors.charcoal }}>Spine Curvature: {poseResult.spineAngle}° · Shoulder Tilt: {poseResult.shoulderTilt}° · Hip Counter-Tilt: {poseResult.hipTilt}°</Text>
+            </View>
+          )}
+
+          <Button
+            title="Send Pose Skeleton to Canvas Layer"
+            icon="✎"
+            tone="soft"
+            onPress={() => void sendPoseToCanvas()}
+            style={styles.fullButton}
+          />
+        </InfoCard>
+      )}
+
+      {/* =========================================================================
+          MODULE 11: AI HAND & FOOT ASSISTANT
+          ========================================================================= */}
+      {tool === "handfoot" && (
+        <InfoCard style={styles.studioCard}>
+          <View style={styles.studioCardHeader}>
+            <Eyebrow>21 LANDMARKS & JOINT ROOT ARCHES</Eyebrow>
+            <Text style={styles.studioTitle}>AI Hand & Foot Assistant</Text>
+            <Text style={styles.studioSubtitle}>Palm box volumes, middle-finger dominance & arch construction</Text>
+          </View>
+
+          {/* Hand vs Foot Toggle */}
+          <View style={styles.toggleRow}>
+            {(["hand", "foot"] as const).map((t) => {
+              const active = handFootType === t;
+              return (
+                <Pressable
+                  key={t}
+                  onPress={() => setHandFootType(t)}
+                  style={[styles.toggleBtn, active && styles.toggleBtnActive]}
+                >
+                  <Text style={[styles.toggleBtnText, active && styles.toggleBtnTextActive]}>{t === "hand" ? "✋ Hand Construction" : "🦶 Foot Arch"}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+
+          {handFootResult && (
+            <View style={{ backgroundColor: "#F9F6F0", padding: 12, borderRadius: 8, marginVertical: 8 }}>
+              <Text style={{ fontSize: 11, fontWeight: "700", color: colors.forest, marginBottom: 4 }}>Common Pitfalls to Avoid:</Text>
+              {handFootResult.commonMistakes.map((m, i) => (
+                <Text key={i} style={{ fontSize: 11, color: colors.inkMuted, lineHeight: 16, marginBottom: 2 }}>⚠ {m}</Text>
+              ))}
+            </View>
+          )}
+
+          <Button
+            title={`Send ${handFootType === "hand" ? "Hand" : "Foot"} Guides to Canvas Layer`}
+            icon="✎"
+            tone="soft"
+            onPress={() => void sendHandFootToCanvas()}
+            style={styles.fullButton}
+          />
+        </InfoCard>
+      )}
+
+      {/* =========================================================================
+          MODULE 12: AI LIGHTING & SHADOW PREDICTOR
+          ========================================================================= */}
+      {tool === "lighting" && (
+        <InfoCard style={styles.studioCard}>
+          <View style={styles.studioCardHeader}>
+            <Eyebrow>DIRECTIONAL VECTORS & GRAPHITE GRADES</Eyebrow>
+            <Text style={styles.studioTitle}>AI Lighting Predictor</Text>
+            <Text style={styles.studioSubtitle}>3D incident light rays, highlight zones & graphite pencil hardness</Text>
+          </View>
+
+          {lightingResult && (
+            <>
+              {/* Dial Controls */}
+              <View style={styles.sliderRow}>
+                <Text style={styles.sliderLabel}>Incident Light Angle: {lightingResult.primaryLightAngle}°</Text>
+                <View style={styles.sliderButtons}>
+                  <Pressable
+                    onPress={() => setLightingResult((l) => l ? { ...l, primaryLightAngle: (l.primaryLightAngle - 30 + 360) % 360 } : null)}
+                    style={styles.stepBtn}
+                  >
+                    <Text style={styles.stepBtnText}>↺ −30°</Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => setLightingResult((l) => l ? { ...l, primaryLightAngle: (l.primaryLightAngle + 30) % 360 } : null)}
+                    style={styles.stepBtn}
+                  >
+                    <Text style={styles.stepBtnText}>+30° ↻</Text>
+                  </Pressable>
+                </View>
+              </View>
+
+              {/* Graphite Recommendations */}
+              <View style={{ backgroundColor: "#F9F6F0", padding: 12, borderRadius: 8, marginVertical: 8 }}>
+                <Text style={{ fontSize: 11, fontWeight: "700", color: colors.forest, marginBottom: 4 }}>Recommended Graphite Grades:</Text>
+                <Text style={{ fontSize: 11, color: colors.charcoal }}>• Highlights: {lightingResult.recommendedGraphiteGrades.highlights}</Text>
+                <Text style={{ fontSize: 11, color: colors.charcoal }}>• Midtones: {lightingResult.recommendedGraphiteGrades.midtones}</Text>
+                <Text style={{ fontSize: 11, color: colors.charcoal }}>• Core Shadows: {lightingResult.recommendedGraphiteGrades.shadows}</Text>
+                <Text style={{ fontSize: 11, color: colors.charcoal }}>• Occlusion Darks: {lightingResult.recommendedGraphiteGrades.deepDark}</Text>
+              </View>
+            </>
+          )}
+
+          <Button
+            title="Send Lighting Ray to Canvas Layer"
+            icon="☀"
+            tone="soft"
+            onPress={() => void sendLightingToCanvas()}
+            style={styles.fullButton}
+          />
+        </InfoCard>
+      )}
+
+      {/* =========================================================================
+          MODULE 13: AI COMPOSITION COACH
+          ========================================================================= */}
+      {tool === "composition" && (
+        <InfoCard style={styles.studioCard}>
+          <View style={styles.studioCardHeader}>
+            <Eyebrow>GOLDEN SPIRAL, THIRDS & VISUAL WEIGHT</Eyebrow>
+            <Text style={styles.studioTitle}>AI Composition Coach</Text>
+            <Text style={styles.studioSubtitle}>Focal intersection points, negative space ratio & dynamic framing</Text>
+          </View>
+
+          {/* Grid Mode Selector */}
+          <View style={styles.toggleRow}>
+            {(["thirds", "golden_spiral", "diagonal"] as const).map((m) => {
+              const active = compositionGridMode === m;
+              return (
+                <Pressable
+                  key={m}
+                  onPress={() => setCompositionGridMode(m)}
+                  style={[styles.toggleBtn, active && styles.toggleBtnActive]}
+                >
+                  <Text style={[styles.toggleBtnText, active && styles.toggleBtnTextActive]}>{m.replace("_", " ").toUpperCase()}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+
+          {compositionResult && (
+            <View style={{ backgroundColor: "#F7F3E9", padding: 12, borderRadius: 8, marginVertical: 8 }}>
+              <Text style={{ fontSize: 11, fontWeight: "700", color: colors.forest, marginBottom: 4 }}>Composition Metrics:</Text>
+              <Text style={{ fontSize: 11, color: colors.charcoal }}>Rule of Thirds Alignment: {compositionResult.ruleOfThirdsAlignment}% · Negative Space Ratio: {Math.round(compositionResult.negativeSpaceRatio * 100)}%</Text>
+              {compositionResult.critique.map((c, i) => (
+                <Text key={i} style={{ fontSize: 11, color: colors.inkMuted, marginTop: 4 }}>• {c}</Text>
+              ))}
+            </View>
+          )}
+
+          <Button
+            title={`Send ${compositionGridMode.replace("_", " ")} Grid to Canvas Layer`}
+            icon="▦"
+            tone="soft"
+            onPress={() => void sendCompositionToCanvas()}
+            style={styles.fullButton}
+          />
+        </InfoCard>
+      )}
+
       {/* --- ANALYSIS NOTES & PALETTES FOR ALL TOOLS --- */}
       <InfoCard style={styles.analysisCard}>
         <Text style={styles.analysisLabel}>
@@ -1779,4 +2420,12 @@ const styles = StyleSheet.create({
   lessonObjective: { fontSize: 12, fontWeight: "700", color: colors.ink, lineHeight: 18 },
   lessonSubHeading: { fontSize: 10, fontWeight: "800", color: colors.moss, letterSpacing: 1, marginTop: 8, marginBottom: 4 },
   lessonBullet: { fontSize: 11, color: colors.ink, lineHeight: 17, marginBottom: 2 },
+
+  // --- EXPERIENCE TIER TOGGLE STYLES ---
+  tierToggleRow: { flexDirection: "row", alignItems: "center", gap: 8, marginVertical: 10 },
+  tierLabel: { fontSize: 12, fontWeight: "700", color: colors.ink },
+  tierPill: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 14, backgroundColor: "#EBE5D8" },
+  tierPillActive: { backgroundColor: colors.forest },
+  tierPillText: { fontSize: 11, fontWeight: "600", color: colors.charcoal },
+  tierPillTextActive: { color: "#FFFFFF" },
 });

@@ -14,6 +14,8 @@ export default function HomeScreen() {
   const columns = width > 760 ? 4 : 2;
   const reference = useAppStore((state) => state.reference);
   const createProject = useAppStore((state) => state.createProject);
+  const experienceMode = useAppStore((state) => state.experienceMode);
+  const setExperienceMode = useAppStore((state) => state.setExperienceMode);
   const [busy, setBusy] = useState(false);
 
   const startDrawing = async (withReference = false) => {
@@ -39,7 +41,24 @@ export default function HomeScreen() {
 
   return (
     <Screen>
-      <AppHeader title="ARTISTRY AI" right={<Pressable onPress={() => router.push("/projects")} style={styles.projectLink}><Text style={styles.projectLinkText}>Projects  ›</Text></Pressable>} />
+      <AppHeader
+        title="ARTISTRY AI"
+        right={
+          <View style={{ flexDirection: "row", gap: 6, alignItems: "center" }}>
+            <Pressable
+              onPress={() => void setExperienceMode(experienceMode === "beginner" ? "professional" : "beginner")}
+              style={styles.tierToggle}
+            >
+              <Text style={styles.tierToggleText}>
+                {experienceMode === "beginner" ? "🌱 Beginner" : "⚡ Pro"}
+              </Text>
+            </Pressable>
+            <Pressable onPress={() => router.push("/projects")} style={styles.projectLink}>
+              <Text style={styles.projectLinkText}>Projects  ›</Text>
+            </Pressable>
+          </View>
+        }
+      />
       <View style={[styles.hero, isMobile && { flexDirection: "column", padding: 20 }]}>
         <View style={[styles.heroCopy, isMobile && { maxWidth: "100%" }]}>
           <Eyebrow>YOUR QUIET PLACE TO PRACTICE</Eyebrow>
@@ -79,7 +98,7 @@ export default function HomeScreen() {
         {reference ? <Pressable onPress={() => router.push("/reference")} style={styles.thumbWrap} accessibilityLabel="Open reference preview"><Image source={{ uri: reference.uri }} style={styles.thumb} /><Text style={styles.thumbLabel}>Preview</Text></Pressable> : <View style={styles.importGlyph}><Text style={styles.importGlyphText}>＋</Text></View>}
       </InfoCard>
 
-      <SectionHeading title="Eight drawing companions" detail="Each accepts a local image" />
+      <SectionHeading title="AI Drawing Intelligence Ecosystem" detail="27 studios & assistants · Offline-ready" />
       <View style={[styles.toolGrid, { gap: 11 }]}>
         {FEATURES.map((feature, index) => (
           <Pressable key={feature.id} onPress={() => openTool(feature.id)} style={({ pressed }) => [styles.toolCard, { width: `${100 / columns - (columns === 2 ? 1.7 : 1.1)}%` }, pressed && styles.pressed]}>
@@ -96,6 +115,8 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
+  tierToggle: { paddingHorizontal: 11, paddingVertical: 7, borderRadius: 16, backgroundColor: "#EBE5D8" },
+  tierToggleText: { fontSize: 11, fontWeight: "700", color: colors.charcoal },
   projectLink: { paddingHorizontal: 13, paddingVertical: 9, borderRadius: 18, backgroundColor: colors.mossLight },
   projectLinkText: { fontSize: 12, fontWeight: "700", color: colors.moss },
   hero: { minHeight: 300, flexDirection: "row", alignItems: "center", backgroundColor: "#ECEFE6", borderRadius: 28, padding: 25, overflow: "hidden" },

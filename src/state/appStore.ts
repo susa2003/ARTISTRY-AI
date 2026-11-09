@@ -1,5 +1,14 @@
 import { create } from "zustand";
-import type { BrushKind, DrawingLayer, LocalReference, ProjectDocument, ProjectSummary, Stroke, UndoSnapshot } from "../domain/types";
+import type {
+  BrushKind,
+  DrawingLayer,
+  ExperienceMode,
+  LocalReference,
+  ProjectDocument,
+  ProjectSummary,
+  Stroke,
+  UndoSnapshot,
+} from "../domain/types";
 import type { SmoothingLevel } from "../features/drawing/StrokeSmoothing";
 import * as database from "../storage/database";
 import { createId } from "../storage/imageFiles";
@@ -52,6 +61,8 @@ type AppStore = {
   importStrokesToLayer: (layerName: string, strokes: Stroke[]) => void;
   undo: () => void;
   redo: () => void;
+  experienceMode: ExperienceMode;
+  setExperienceMode: (mode: ExperienceMode) => Promise<void>;
   lessonProgress: Record<string, boolean>;
   streak: { current: number; longest: number; lastActiveDate: string | null };
   loadLearningProgress: () => Promise<void>;
@@ -70,14 +81,16 @@ export const useAppStore = create<AppStore>((set, get) => ({
   smoothing: "medium",
   past: [],
   future: [],
+  experienceMode: "beginner",
   lessonProgress: {},
   streak: { current: 0, longest: 0, lastActiveDate: null },
   hydrate: async () => {
-    const [projects, reference, lessons, streakData] = await Promise.all([
+    const [projects, reference, lessons, streakData, mode] = await Promise.all([
       database.listProjects(),
       database.getActiveReference(),
       database.getLessonProgress(),
       database.getStreakData(),
+      database.getExperienceMode(),
     ]);
     const progressMap: Record<string, boolean> = {};
     Object.keys(lessons).forEach((id) => {
@@ -87,6 +100,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
       ready: true,
       projects,
       reference,
+      experienceMode: mode,
       lessonProgress: progressMap,
       streak: {
         current: streakData.currentStreak,
@@ -94,6 +108,10 @@ export const useAppStore = create<AppStore>((set, get) => ({
         lastActiveDate: streakData.lastActiveDate,
       },
     });
+  },
+  setExperienceMode: async (mode) => {
+    await database.setExperienceMode(mode);
+    set({ experienceMode: mode });
   },
   loadLearningProgress: async () => {
     const [lessons, streakData] = await Promise.all([
@@ -191,9 +209,15 @@ export const useAppStore = create<AppStore>((set, get) => ({
   commitStroke: (stroke) => set((state) => {
     const project = state.currentProject;
     if (!project) return {};
-    const layers = project.layers.map((layer) => layer.id === project.activeLayerId ? { ...layer, strokes: [...layer.strokes, stroke] } : layer);
+    const now = Date.now();
+    const stampedStroke: Stroke = {
+      ...stroke,
+      timestamp: stroke.timestamp ?? now,
+      startTime: stroke.startTime ?? now,
+    };
+    const layers = project.layers.map((layer) => layer.id === project.activeLayerId ? { ...layer, strokes: [...layer.strokes, stampedStroke] } : layer);
     return {
-      currentProject: { ...project, layers, updatedAt: Date.now() },
+      currentProject: { ...project, layers, updatedAt: now },
       past: [...state.past.slice(-49), snapshot(project)],
       future: [],
     };

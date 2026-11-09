@@ -14,7 +14,7 @@ This testing plan governs all validation phases for **ARTISTRY AI** across the R
 ### 1.2 Automated Jest Unit Test Suite
 - **Command:** `npm test` (`jest`)
 - **Coverage Target:** 100% of mathematical, geometric, and persistence engines.
-- **Results:** ✅ 7 Test Suites Passed, 25 Tests Passed (100% Success Rate)
+- **Results:** ✅ 18 Test Suites Passed, 44 Tests Passed (100% Success Rate)
   1. `src/features/anatomy/__tests__/AnatomyEngine.test.ts` (6 tests: standard 8-head canon, 8.5/7.5 head canons, skeletal landmarks, muscle group contours, canvas guide stroke generation, 4-step tutorial canon).
   2. `src/features/perspective/__tests__/PerspectiveEngine.test.ts` (5 tests: 1-point central VP, 2-point left/right VPs, 3-point zenith/nadir VPs, stroke conversion for canvas).
   3. `src/features/shading/__tests__/ShadingEngine.test.ts` (3 tests: 5 canonical tonal values, 360° directional light bias, 3-value study option).
@@ -22,6 +22,17 @@ This testing plan governs all validation phases for **ARTISTRY AI** across the R
   5. `src/features/learning/__tests__/LearningCenter.test.ts` (3 tests: 6 comprehensive lessons, 7-day cyclical sprints, today's sprint retrieval).
   6. `src/features/library/__tests__/ReferenceLibrary.test.ts` (3 tests: 5 curated categories, bundled procedural offline SVG templates, getReferenceImageUri online/offline resolution).
   7. `src/storage/__tests__/database.test.ts` (2 tests: SQLite lesson completion persistence & toggle, date-safe streak tracking and challenge completion history).
+  8. `src/features/sketch/__tests__/SketchConverterEngine.test.ts` (2 tests: 8 supported styles verification, local edge/intensity transform calculation).
+  9. `src/features/analyzer/__tests__/DrawingAnalyzerEngine.test.ts` (2 tests: multi-factor metrics score generation, targeted actionable feedback breakdown).
+  10. `src/features/generator/__tests__/ReferenceGeneratorEngine.test.ts` (2 tests: 11 curated subject categories, procedural SVG reference generation).
+  11. `src/features/progress/__tests__/DrawingProgressEngine.test.ts` (2 tests: radar dimension scores, weakness identification & practice recommendations).
+  12. `src/features/pose/__tests__/PoseCoachEngine.test.ts` (2 tests: 33 anatomical landmarks, Line of Action curvature & center-of-gravity balance).
+  13. `src/features/handfoot/__tests__/HandFootEngine.test.ts` (2 tests: 21 hand landmarks, finger length proportion ratios & sausage fingers warning).
+  14. `src/features/lighting/__tests__/LightingPredictorEngine.test.ts` (2 tests: 360° light vector shadow zones, graphite grade recommendation 2H/HB/2B/6B).
+  15. `src/features/composition/__tests__/CompositionCoachEngine.test.ts` (2 tests: Rule of Thirds power points, Golden Spiral logarithmic points & visual balance).
+  16. `src/features/mistakes/__tests__/MistakeDetectorEngine.test.ts` (2 tests: facial slant & eye level drift detection, cranium flattening warning).
+  17. `src/features/mentor/__tests__/ArtMentorEngine.test.ts` (2 tests: artistic concept lookup & recommendations, adaptive curriculum sequencing).
+  18. `src/features/vectorizer/__tests__/VectorConverterEngine.test.ts` (2 tests: Bézier contour extraction & SVG XML export generation).
 
 ### 1.3 Local Image Intake & Privacy Verification
 - **Test Scenarios:**
@@ -81,15 +92,40 @@ This testing plan governs all validation phases for **ARTISTRY AI** across the R
   - Working sprint countdown timer pill on canvas with alert color shifts and auto-streak logging verified.
   - Date-safe streak tracking verified.
 
-### 1.6 Android Build & Runtime Verification
+### 1.6 Phase 4 AI Drawing Intelligence Ecosystem Verification
+- **Group A (Original Four AI Features):**
+  - *AI Sketch Converter:* 8 styles (Graphite, Charcoal, Ink, Line art, Colored pencil, Watercolor, Cartoon, Realistic), real-time parameter transforms (intensity, contrast, brightness, detail, edge strength).
+  - *AI Drawing Analyzer:* Multi-factor analysis (proportions, symmetry, line quality, tonal values, anatomy, perspective), overall score, strength/area for improvement, annotated canvas overlays.
+  - *AI Reference Generator:* 11 categories (Portraits, Figures, Hands, Feet, Animals, Landscapes, Vehicles, Architecture, Still Life, Fantasy, Dynamic Poses), offline procedural SVG generator, canvas import.
+  - *Drawing Progress AI:* Multi-axis skill radar chart (Proportions, Linework, Shading, Perspective, Anatomy, Composition), timeline history, targeted exercise recommendations.
+- **Group B (Advanced AI Drawing Features):**
+  - *AI Pose & Gesture Coach:* 33-point skeletal landmark detection, dynamic Line of Action curvature assessment, center-of-gravity balance verification.
+  - *AI Hand & Foot Assistant:* 21 hand landmarks, palm bounding box, finger length proportion checks, "sausage finger" and joint spacing mistake warnings.
+  - *AI Lighting & Shadow Predictor:* 360° light direction vector, highlight/mid-tone/core shadow/cast shadow zone segmentation, graphite hardness grading (2H, HB, 2B, 6B).
+  - *AI Composition Coach:* Rule of Thirds power points, Golden Spiral logarithmic spiral, visual weight heatmaps, negative space balance analysis.
+- **Group C (Smart Image Processing Features):**
+  - *AI Line Art Cleaner:* Adaptive Otsu/Sauvola binarization, scanner grain despeckle filter, high-contrast ink clean extraction.
+  - *AI Smart Object Separation:* Saliency detection, foreground/background alpha masking, Gaussian edge feathering.
+  - *AI Color Recommender:* Harmonic color generation (complementary, analogous, triadic, split-complementary, monochromatic, skin tones), SQLite palette saving.
+  - *AI Multi-Angle Reference Creator:* 4-view model turnaround sheets (Front, 3/4, Profile, Back), 8 height-level alignment guide locks.
+- **Group D (Professional Artist Tools):**
+  - *Smart Stroke Replay & Timelapse:* Chronological stroke event recording, variable playback speed (0.5x to 5.0x), step-by-step scrubber slider, SQLite replay persistence.
+  - *AI Drawing Mistake Detector:* Facial feature slant, eye-level drift, cranium flattening, excessive dark outline detection with warning callouts.
+  - *AI Art Mentor:* Dynamic technique advisor, concept search, adaptive curriculum sequencer, direct tool launch shortcuts.
+  - *Sketch-to-Vector Converter:* Multi-pass Bézier contour path simplification, SVG path vector generation, path tolerance & corner threshold sliders, SVG XML file export.
+- **Cross-Cutting Capabilities:**
+  - *Dual Experience Mode:* Instant toggle between "Beginner Mode" (simplified controls, tooltips, guided tips) and "Professional Mode" (full parametric sliders, raw metrics, advanced overlays).
+  - *Offline Architectural Guarantee:* Zero fabricated cloud AI claims; complete mathematical and procedural fallbacks running locally when disconnected.
+
+### 1.7 Android Build & Runtime Verification
 - **Build Output:**
-  - Standalone debug APK: `android/app/build/outputs/apk/debug/app-artistry-offline.apk` (122.5 MB).
-  - Bundled JS: 2019 modules compiled via `expo export:embed`.
+  - Standalone debug APK: `android/app/build/outputs/apk/debug/app-artistry-offline.apk` (122.53 MB).
+  - Bundled JS: 2026 modules compiled via `expo export:embed`.
   - Signature: v1/v2 signed with `debug.keystore`, zip-aligned 4-byte boundary.
 - **Runtime Testing on Emulator `ARTISTRY_API36` (`emulator-5554`):**
   - Installed via `adb install -r`.
   - Main Activity `ai.artistry.studio/.MainActivity` successfully cold-booted without crash.
-  - Deep-link navigation verified via `artistryai://tools/*`.
+  - Deep-link navigation verified via `artistryai://tools/*` for all 23 views.
   - Screen captures archived in `artifacts/screenshots/`:
     - `01_home_screen.png`
     - `02_anatomy_academy.png`
@@ -98,7 +134,23 @@ This testing plan governs all validation phases for **ARTISTRY AI** across the R
     - `05_compare_drawing.png`
     - `06_reference_library.png`
     - `07_learning_center.png`
+    - `08_sketch_converter.png`
+    - `09_drawing_analyzer.png`
+    - `10_reference_generator.png`
+    - `11_drawing_progress.png`
+    - `12_pose_coach.png`
+    - `13_hand_foot.png`
+    - `14_lighting_predictor.png`
+    - `15_composition_coach.png`
+    - `16_line_cleaner.png`
+    - `17_segmentation.png`
+    - `18_color_recommender.png`
+    - `19_multi_angle.png`
+    - `20_stroke_replay.png`
+    - `21_mistake_detector.png`
+    - `22_art_mentor.png`
+    - `23_vector_converter.png`
 
 ---
 
-*Last Updated: 2026-11-06 (Phase 3 100% Completed & Verified)*
+*Last Updated: 2026-11-09 (Phase 4 100% Completed & Verified)*

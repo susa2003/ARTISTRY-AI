@@ -1,3 +1,20 @@
+// Mock react-native
+jest.mock("react-native", () => ({
+  Image: {
+    getSize: jest.fn((uri, success) => success(800, 1000)),
+  },
+  Platform: {
+    OS: "android",
+    select: jest.fn((dict) => dict.android ?? dict.default),
+  },
+  StyleSheet: {
+    create: (styles) => styles,
+  },
+  Dimensions: {
+    get: jest.fn(() => ({ width: 800, height: 1200 })),
+  },
+}));
+
 // Mock @shopify/react-native-skia for node/Jest environment
 jest.mock("@shopify/react-native-skia", () => {
   return {
@@ -38,6 +55,10 @@ jest.mock("expo-sqlite", () => {
     lessonProgress: new Map(),
     challengeCompletions: [],
     streak: { current_streak: 0, longest_streak: 0, last_active_date: null },
+    drawingAnalyses: new Map(),
+    generatedReferences: new Map(),
+    savedPalettes: new Map(),
+    strokeReplays: new Map(),
   };
 
   const mockDb = {
@@ -63,21 +84,81 @@ jest.mock("expo-sqlite", () => {
         } else {
           store.streak.current_streak = 0;
         }
+      } else if (sql.includes("INSERT INTO drawing_analyses")) {
+        store.drawingAnalyses.set(params[0], {
+          id: params[0],
+          project_id: params[1],
+          timestamp: params[2],
+          overall_score: params[3],
+          proportions_score: params[4],
+          alignment_score: params[5],
+          perspective_score: params[6],
+          composition_score: params[7],
+          shading_score: params[8],
+          feedback_json: params[9],
+          annotations_json: params[10],
+        });
+      } else if (sql.includes("INSERT INTO generated_references")) {
+        store.generatedReferences.set(params[0], {
+          id: params[0],
+          prompt: params[1],
+          category: params[2],
+          style: params[3],
+          pose: params[4],
+          lighting: params[5],
+          uri: params[6],
+          created_at: params[7],
+        });
+      } else if (sql.includes("DELETE FROM generated_references")) {
+        store.generatedReferences.delete(params[0]);
+      } else if (sql.includes("INSERT INTO saved_palettes")) {
+        store.savedPalettes.set(params[0], {
+          id: params[0],
+          name: params[1],
+          colors_json: params[2],
+          created_at: params[3],
+        });
+      } else if (sql.includes("DELETE FROM saved_palettes")) {
+        store.savedPalettes.delete(params[0]);
+      } else if (sql.includes("INSERT INTO stroke_replays")) {
+        store.strokeReplays.set(params[1], {
+          id: params[0],
+          project_id: params[1],
+          events_json: params[2],
+          duration_ms: params[3],
+          created_at: params[4],
+        });
       }
       return { changes: 1, lastInsertRowId: 1 };
     }),
-    getAllAsync: jest.fn(async (sql) => {
+    getAllAsync: jest.fn(async (sql, ...params) => {
       if (sql.includes("FROM lesson_progress")) {
         return Array.from(store.lessonProgress.values());
       }
       if (sql.includes("FROM challenge_completions")) {
         return store.challengeCompletions;
       }
+      if (sql.includes("FROM drawing_analyses")) {
+        const all = Array.from(store.drawingAnalyses.values());
+        if (sql.includes("WHERE project_id = ?")) {
+          return all.filter((a) => a.project_id === params[0]);
+        }
+        return all;
+      }
+      if (sql.includes("FROM generated_references")) {
+        return Array.from(store.generatedReferences.values());
+      }
+      if (sql.includes("FROM saved_palettes")) {
+        return Array.from(store.savedPalettes.values());
+      }
       return [];
     }),
-    getFirstAsync: jest.fn(async (sql) => {
+    getFirstAsync: jest.fn(async (sql, ...params) => {
       if (sql.includes("FROM streak_data")) {
         return { ...store.streak };
+      }
+      if (sql.includes("FROM stroke_replays")) {
+        return store.strokeReplays.get(params[0]) ?? null;
       }
       return null;
     }),
@@ -87,3 +168,28 @@ jest.mock("expo-sqlite", () => {
     openDatabaseAsync: jest.fn(async () => mockDb),
   };
 });
+
+// Mock expo-file-system and expo-file-system/legacy
+const fileSystemMock = {
+  documentDirectory: "file:///mock/documents/",
+  cacheDirectory: "file:///mock/cache/",
+  writeAsStringAsync: jest.fn(async () => {}),
+  readAsStringAsync: jest.fn(async () => ""),
+  getInfoAsync: jest.fn(async () => ({ exists: true })),
+  makeDirectoryAsync: jest.fn(async () => {}),
+  downloadAsync: jest.fn(async () => ({ uri: "file:///mock/downloaded.jpg" })),
+  copyAsync: jest.fn(async () => {}),
+};
+
+jest.mock("expo-file-system/legacy", () => fileSystemMock);
+jest.mock("expo-file-system", () => fileSystemMock);
+
+// Mock expo-image-manipulator
+jest.mock("expo-image-manipulator", () => ({
+  manipulateAsync: jest.fn(async (uri) => ({
+    uri: "file:///mock/manipulated.png",
+    width: 800,
+    height: 1000,
+  })),
+  SaveFormat: { PNG: "png", JPEG: "jpeg" },
+}));

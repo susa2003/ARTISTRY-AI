@@ -54,40 +54,116 @@ def capture_screen(name: str):
 # 1. Main home screen
 capture_screen("01_home_screen")
 
-# Test Module 1: Anatomy Academy
+# Test Phase 3 Modules
 print("Testing Anatomy Academy...")
 subprocess.run([adb, "shell", "am", "start", "-a", "android.intent.action.VIEW", "-d", "artistryai://tools/anatomy"], check=True)
 time.sleep(3)
 capture_screen("02_anatomy_academy")
 
-# Test Module 2: Perspective Assistant
 print("Testing Perspective Assistant...")
 subprocess.run([adb, "shell", "am", "start", "-a", "android.intent.action.VIEW", "-d", "artistryai://tools/perspective"], check=True)
 time.sleep(3)
 capture_screen("03_perspective_assistant")
 
-# Test Module 3: Shading Studio
 print("Testing Shading Studio...")
 subprocess.run([adb, "shell", "am", "start", "-a", "android.intent.action.VIEW", "-d", "artistryai://tools/shading"], check=True)
 time.sleep(3)
 capture_screen("04_shading_studio")
 
-# Test Module 4: Reference vs My Drawing
 print("Testing Reference vs My Drawing...")
 subprocess.run([adb, "shell", "am", "start", "-a", "android.intent.action.VIEW", "-d", "artistryai://tools/compare"], check=True)
 time.sleep(3)
 capture_screen("05_compare_drawing")
 
-# Test Module 5: Reference Library
 print("Testing Reference Library...")
 subprocess.run([adb, "shell", "am", "start", "-a", "android.intent.action.VIEW", "-d", "artistryai://tools/library"], check=True)
 time.sleep(3)
 capture_screen("06_reference_library")
 
-# Test Module 6: Learning Center & Challenges
 print("Testing Learning Center...")
 subprocess.run([adb, "shell", "am", "start", "-a", "android.intent.action.VIEW", "-d", "artistryai://tools/learning"], check=True)
 time.sleep(3)
 capture_screen("07_learning_center")
 
-print("ALL PHASE 3 MODULES VERIFIED SUCCESSFULLY ON RUNTIME EMULATOR!")
+# Test Phase 4 Modules
+print("Testing AI Sketch Converter...")
+subprocess.run([adb, "shell", "am", "start", "-a", "android.intent.action.VIEW", "-d", "artistryai://tools/sketch"], check=True)
+time.sleep(3)
+capture_screen("08_sketch_converter")
+
+print("Testing AI Drawing Analyzer...")
+subprocess.run([adb, "shell", "am", "start", "-a", "android.intent.action.VIEW", "-d", "artistryai://tools/analyzer"], check=True)
+time.sleep(3)
+capture_screen("09_drawing_analyzer")
+
+print("Testing AI Reference Generator...")
+subprocess.run([adb, "shell", "am", "start", "-a", "android.intent.action.VIEW", "-d", "artistryai://tools/generator"], check=True)
+time.sleep(3)
+capture_screen("10_reference_generator")
+
+print("Testing Drawing Progress AI...")
+subprocess.run([adb, "shell", "am", "start", "-a", "android.intent.action.VIEW", "-d", "artistryai://tools/progress"], check=True)
+time.sleep(3)
+capture_screen("11_drawing_progress")
+
+print("Testing AI Pose & Gesture Coach...")
+subprocess.run([adb, "shell", "am", "start", "-a", "android.intent.action.VIEW", "-d", "artistryai://tools/pose"], check=True)
+time.sleep(3)
+capture_screen("12_pose_coach")
+
+print("Testing AI Hand & Foot Assistant...")
+subprocess.run([adb, "shell", "am", "start", "-a", "android.intent.action.VIEW", "-d", "artistryai://tools/handfoot"], check=True)
+time.sleep(3)
+capture_screen("13_hand_foot")
+
+print("Testing AI Lighting Predictor...")
+subprocess.run([adb, "shell", "am", "start", "-a", "android.intent.action.VIEW", "-d", "artistryai://tools/lighting"], check=True)
+time.sleep(3)
+capture_screen("14_lighting_predictor")
+
+print("Testing AI Composition Coach...")
+subprocess.run([adb, "shell", "am", "start", "-a", "android.intent.action.VIEW", "-d", "artistryai://tools/composition"], check=True)
+time.sleep(3)
+capture_screen("15_composition_coach")
+
+print("Testing AI Line Art Cleaner...")
+subprocess.run([adb, "shell", "am", "start", "-a", "android.intent.action.VIEW", "-d", "artistryai://tools/linecleaner"], check=True)
+time.sleep(3)
+capture_screen("16_line_cleaner")
+
+print("Testing AI Smart Segmentation...")
+subprocess.run([adb, "shell", "am", "start", "-a", "android.intent.action.VIEW", "-d", "artistryai://tools/segmentation"], check=True)
+time.sleep(3)
+capture_screen("17_segmentation")
+
+print("Testing AI Color Recommender...")
+subprocess.run([adb, "shell", "am", "start", "-a", "android.intent.action.VIEW", "-d", "artistryai://tools/colorrec"], check=True)
+time.sleep(3)
+capture_screen("18_color_recommender")
+
+print("Testing AI Multi-Angle Creator...")
+subprocess.run([adb, "shell", "am", "start", "-a", "android.intent.action.VIEW", "-d", "artistryai://tools/turnaround"], check=True)
+time.sleep(3)
+capture_screen("19_multi_angle")
+
+print("Testing Smart Stroke Replay...")
+subprocess.run([adb, "shell", "am", "start", "-a", "android.intent.action.VIEW", "-d", "artistryai://tools/replay"], check=True)
+time.sleep(3)
+capture_screen("20_stroke_replay")
+
+print("Testing AI Mistake Detector...")
+subprocess.run([adb, "shell", "am", "start", "-a", "android.intent.action.VIEW", "-d", "artistryai://tools/mistakes"], check=True)
+time.sleep(3)
+capture_screen("21_mistake_detector")
+
+print("Testing AI Art Mentor...")
+subprocess.run([adb, "shell", "am", "start", "-a", "android.intent.action.VIEW", "-d", "artistryai://tools/mentor"], check=True)
+time.sleep(3)
+capture_screen("22_art_mentor")
+
+print("Testing Sketch-to-Vector Converter...")
+subprocess.run([adb, "shell", "am", "start", "-a", "android.intent.action.VIEW", "-d", "artistryai://tools/vectorizer"], check=True)
+time.sleep(3)
+capture_screen("23_vector_converter")
+
+print("ALL PHASE 3 AND PHASE 4 ECOSYSTEM MODULES VERIFIED SUCCESSFULLY ON RUNTIME EMULATOR!")

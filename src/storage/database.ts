@@ -1,5 +1,15 @@
 import * as SQLite from "expo-sqlite";
-import type { DrawingLayer, LocalReference, ProjectDocument, ProjectSummary } from "../domain/types";
+import type {
+  DrawingAnalysisRecord,
+  DrawingLayer,
+  ExperienceMode,
+  GeneratedReferenceRecord,
+  LocalReference,
+  ProjectDocument,
+  ProjectSummary,
+  SavedPaletteRecord,
+  StrokeReplayRecord,
+} from "../domain/types";
 
 let databasePromise: Promise<SQLite.SQLiteDatabase> | undefined;
 
@@ -58,6 +68,46 @@ async function database() {
           current_streak INTEGER NOT NULL DEFAULT 0,
           longest_streak INTEGER NOT NULL DEFAULT 0,
           last_active_date TEXT
+        );
+
+        CREATE TABLE IF NOT EXISTS drawing_analyses (
+          id TEXT PRIMARY KEY NOT NULL,
+          project_id TEXT,
+          timestamp INTEGER NOT NULL,
+          overall_score REAL NOT NULL,
+          proportions_score REAL NOT NULL,
+          alignment_score REAL NOT NULL,
+          perspective_score REAL NOT NULL,
+          composition_score REAL NOT NULL,
+          shading_score REAL NOT NULL,
+          feedback_json TEXT NOT NULL,
+          annotations_json TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS generated_references (
+          id TEXT PRIMARY KEY NOT NULL,
+          prompt TEXT NOT NULL,
+          category TEXT NOT NULL,
+          style TEXT NOT NULL,
+          pose TEXT NOT NULL,
+          lighting TEXT NOT NULL,
+          uri TEXT NOT NULL,
+          created_at INTEGER NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS saved_palettes (
+          id TEXT PRIMARY KEY NOT NULL,
+          name TEXT NOT NULL,
+          colors_json TEXT NOT NULL,
+          created_at INTEGER NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS stroke_replays (
+          id TEXT PRIMARY KEY NOT NULL,
+          project_id TEXT NOT NULL,
+          events_json TEXT NOT NULL,
+          duration_ms INTEGER NOT NULL,
+          created_at INTEGER NOT NULL
         );
 
         INSERT OR IGNORE INTO streak_data (id, current_streak, longest_streak, last_active_date)
@@ -312,4 +362,211 @@ export async function getChallengeHistory(): Promise<
     completedDate: r.completed_date,
     completedAt: r.completed_at,
   }));
+}
+
+// =========================================================================
+// PHASE 4: DRAWING ANALYSES
+// =========================================================================
+
+export async function saveDrawingAnalysis(analysis: DrawingAnalysisRecord): Promise<void> {
+  const db = await database();
+  await db.runAsync(
+    `INSERT INTO drawing_analyses (id, project_id, timestamp, overall_score, proportions_score,
+      alignment_score, perspective_score, composition_score, shading_score, feedback_json, annotations_json)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT(id) DO UPDATE SET
+      project_id=excluded.project_id, timestamp=excluded.timestamp, overall_score=excluded.overall_score,
+      proportions_score=excluded.proportions_score, alignment_score=excluded.alignment_score,
+      perspective_score=excluded.perspective_score, composition_score=excluded.composition_score,
+      shading_score=excluded.shading_score, feedback_json=excluded.feedback_json, annotations_json=excluded.annotations_json`,
+    analysis.id,
+    analysis.projectId ?? null,
+    analysis.timestamp,
+    analysis.overallScore,
+    analysis.proportionsScore,
+    analysis.alignmentScore,
+    analysis.perspectiveScore,
+    analysis.compositionScore,
+    analysis.shadingScore,
+    JSON.stringify(analysis.feedback),
+    JSON.stringify(analysis.annotations)
+  );
+}
+
+export async function getDrawingAnalyses(limit: number = 20): Promise<DrawingAnalysisRecord[]> {
+  const db = await database();
+  const rows = await db.getAllAsync<Record<string, unknown>>(
+    "SELECT * FROM drawing_analyses ORDER BY timestamp DESC LIMIT ?",
+    limit
+  );
+  return rows.map((row) => ({
+    id: String(row.id),
+    projectId: row.project_id ? String(row.project_id) : null,
+    timestamp: Number(row.timestamp),
+    overallScore: Number(row.overall_score),
+    proportionsScore: Number(row.proportions_score),
+    alignmentScore: Number(row.alignment_score),
+    perspectiveScore: Number(row.perspective_score),
+    compositionScore: Number(row.composition_score),
+    shadingScore: Number(row.shading_score),
+    feedback: JSON.parse(String(row.feedback_json || "[]")),
+    annotations: JSON.parse(String(row.annotations_json || "[]")),
+  }));
+}
+
+export async function getDrawingAnalysesByProject(projectId: string): Promise<DrawingAnalysisRecord[]> {
+  const db = await database();
+  const rows = await db.getAllAsync<Record<string, unknown>>(
+    "SELECT * FROM drawing_analyses WHERE project_id = ? ORDER BY timestamp DESC",
+    projectId
+  );
+  return rows.map((row) => ({
+    id: String(row.id),
+    projectId: row.project_id ? String(row.project_id) : null,
+    timestamp: Number(row.timestamp),
+    overallScore: Number(row.overall_score),
+    proportionsScore: Number(row.proportions_score),
+    alignmentScore: Number(row.alignment_score),
+    perspectiveScore: Number(row.perspective_score),
+    compositionScore: Number(row.composition_score),
+    shadingScore: Number(row.shading_score),
+    feedback: JSON.parse(String(row.feedback_json || "[]")),
+    annotations: JSON.parse(String(row.annotations_json || "[]")),
+  }));
+}
+
+// =========================================================================
+// PHASE 4: GENERATED REFERENCES
+// =========================================================================
+
+export async function saveGeneratedReference(ref: GeneratedReferenceRecord): Promise<void> {
+  const db = await database();
+  await db.runAsync(
+    `INSERT INTO generated_references (id, prompt, category, style, pose, lighting, uri, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT(id) DO UPDATE SET
+      prompt=excluded.prompt, category=excluded.category, style=excluded.style,
+      pose=excluded.pose, lighting=excluded.lighting, uri=excluded.uri, created_at=excluded.created_at`,
+    ref.id,
+    ref.prompt,
+    ref.category,
+    ref.style,
+    ref.pose,
+    ref.lighting,
+    ref.uri,
+    ref.createdAt
+  );
+}
+
+export async function getGeneratedReferences(limit: number = 30): Promise<GeneratedReferenceRecord[]> {
+  const db = await database();
+  const rows = await db.getAllAsync<Record<string, unknown>>(
+    "SELECT * FROM generated_references ORDER BY created_at DESC LIMIT ?",
+    limit
+  );
+  return rows.map((row) => ({
+    id: String(row.id),
+    prompt: String(row.prompt),
+    category: String(row.category),
+    style: String(row.style),
+    pose: String(row.pose),
+    lighting: String(row.lighting),
+    uri: String(row.uri),
+    createdAt: Number(row.created_at),
+  }));
+}
+
+export async function deleteGeneratedReference(id: string): Promise<void> {
+  const db = await database();
+  await db.runAsync("DELETE FROM generated_references WHERE id = ?", id);
+}
+
+// =========================================================================
+// PHASE 4: SAVED COLOR PALETTES
+// =========================================================================
+
+export async function savePalette(palette: SavedPaletteRecord): Promise<void> {
+  const db = await database();
+  await db.runAsync(
+    `INSERT INTO saved_palettes (id, name, colors_json, created_at)
+     VALUES (?, ?, ?, ?)
+     ON CONFLICT(id) DO UPDATE SET name=excluded.name, colors_json=excluded.colors_json, created_at=excluded.created_at`,
+    palette.id,
+    palette.name,
+    JSON.stringify(palette.colors),
+    palette.createdAt
+  );
+}
+
+export async function getSavedPalettes(): Promise<SavedPaletteRecord[]> {
+  const db = await database();
+  const rows = await db.getAllAsync<Record<string, unknown>>(
+    "SELECT * FROM saved_palettes ORDER BY created_at DESC"
+  );
+  return rows.map((row) => ({
+    id: String(row.id),
+    name: String(row.name),
+    colors: JSON.parse(String(row.colors_json || "[]")),
+    createdAt: Number(row.created_at),
+  }));
+}
+
+export async function deletePalette(id: string): Promise<void> {
+  const db = await database();
+  await db.runAsync("DELETE FROM saved_palettes WHERE id = ?", id);
+}
+
+// =========================================================================
+// PHASE 4: STROKE REPLAY
+// =========================================================================
+
+export async function saveStrokeReplay(replay: StrokeReplayRecord): Promise<void> {
+  const db = await database();
+  await db.runAsync(
+    `INSERT INTO stroke_replays (id, project_id, events_json, duration_ms, created_at)
+     VALUES (?, ?, ?, ?, ?)
+     ON CONFLICT(id) DO UPDATE SET events_json=excluded.events_json, duration_ms=excluded.duration_ms, created_at=excluded.created_at`,
+    replay.id,
+    replay.projectId,
+    JSON.stringify(replay.events),
+    replay.durationMs,
+    replay.createdAt
+  );
+}
+
+export async function getStrokeReplay(projectId: string): Promise<StrokeReplayRecord | null> {
+  const db = await database();
+  const row = await db.getFirstAsync<Record<string, unknown>>(
+    "SELECT * FROM stroke_replays WHERE project_id = ? ORDER BY created_at DESC LIMIT 1",
+    projectId
+  );
+  if (!row) return null;
+  return {
+    id: String(row.id),
+    projectId: String(row.project_id),
+    events: JSON.parse(String(row.events_json || "[]")),
+    durationMs: Number(row.duration_ms),
+    createdAt: Number(row.created_at),
+  };
+}
+
+// =========================================================================
+// PHASE 4: EXPERIENCE MODE (BEGINNER vs PROFESSIONAL)
+// =========================================================================
+
+export async function getExperienceMode(): Promise<ExperienceMode> {
+  const db = await database();
+  const row = await db.getFirstAsync<{ value: string }>(
+    "SELECT value FROM app_metadata WHERE key = 'experience_mode'"
+  );
+  if (row?.value === "professional") return "professional";
+  return "beginner";
+}
+
+export async function setExperienceMode(mode: ExperienceMode): Promise<void> {
+  const db = await database();
+  await db.runAsync(
+    "INSERT INTO app_metadata (key, value) VALUES ('experience_mode', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+    mode
+  );
 }

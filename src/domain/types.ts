@@ -11,7 +11,23 @@ export type ToolId =
   | "perspective"
   | "compare"
   | "library"
-  | "learning";
+  | "learning"
+  | "generator"
+  | "progress"
+  | "pose"
+  | "handfoot"
+  | "lighting"
+  | "composition"
+  | "linecleaner"
+  | "segmentation"
+  | "colorrec"
+  | "turnaround"
+  | "replay"
+  | "mistakes"
+  | "mentor"
+  | "vectorizer";
+
+export type ExperienceMode = "beginner" | "professional";
 
 export type BrushKind = "brush" | "pencil" | "pen" | "eraser";
 
@@ -23,6 +39,8 @@ export type Stroke = {
   color: string;
   width: number;
   points: StrokePoint[];
+  timestamp?: number;
+  startTime?: number;
 };
 
 export type DrawingLayer = {
@@ -64,3 +82,64 @@ export type LocalReference = {
 };
 
 export type UndoSnapshot = { layers: DrawingLayer[]; activeLayerId: string };
+
+export type AnalysisAnnotation = {
+  id: string;
+  x: number;
+  y: number;
+  label: string;
+  severity: "low" | "medium" | "high";
+  tip: string;
+};
+
+export type DrawingAnalysisRecord = {
+  id: string;
+  projectId?: string | null;
+  timestamp: number;
+  overallScore: number;
+  proportionsScore: number;
+  alignmentScore: number;
+  perspectiveScore: number;
+  compositionScore: number;
+  shadingScore: number;
+  feedback: string[];
+  annotations: AnalysisAnnotation[];
+};
+
+export type GeneratedReferenceRecord = {
+  id: string;
+  prompt: string;
+  category: string;
+  style: string;
+  pose: string;
+  lighting: string;
+  uri: string;
+  createdAt: number;
+};
+
+export type SavedPaletteRecord = {
+  id: string;
+  name: string;
+  colors: string[];
+  createdAt: number;
+};
+
+export type StrokeEvent = {
+  strokeId: string;
+  pointIndex: number;
+  x: number;
+  y: number;
+  pressure?: number;
+  timestamp: number;
+  kind: BrushKind;
+  color: string;
+  width: number;
+};
+
+export type StrokeReplayRecord = {
+  id: string;
+  projectId: string;
+  events: StrokeEvent[];
+  durationMs: number;
+  createdAt: number;
+};
