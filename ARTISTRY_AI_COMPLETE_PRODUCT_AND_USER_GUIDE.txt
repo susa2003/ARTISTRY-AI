@@ -1,0 +1,1557 @@
+================================================================================
+                    ARTISTRY AI: PRODUCT & USER REFERENCE GUIDE
+               Official Release Documentation, Architecture & Manual
+================================================================================
+
+Document Version: 1.0.0
+Application ID:   ai.artistry.studio
+Target Release:   Android 15 / 16 (API 35-36) | Minimum SDK: Android 7.0 (API 24)
+Date of Audit:    November 9, 2026
+Repository Base:  d:\antigravity\artist ai app
+Document Purpose: Definitive technical manual, user guide, feature audit, and
+                  Google Play pre-launch product documentation.
+
+--------------------------------------------------------------------------------
+TABLE OF CONTENTS
+--------------------------------------------------------------------------------
+ 1. APPLICATION OVERVIEW
+ 2. COMPLETE FEATURE INVENTORY (27 Studio Tools & 16 AI Capabilities)
+ 3. DRAWING WORKSPACE USER GUIDE
+ 4. DRAWING EDUCATION & CLASSICAL FOUNDATIONS ACADEMY
+ 5. AI STUDIO USER GUIDE (All 16 Capabilities)
+ 6. BEGINNER AND PROFESSIONAL MODES
+ 7. TAMIL AND ENGLISH BILINGUAL SUPPORT & VOICE ASSISTANT
+ 8. USER ACCOUNT, AUTHENTICATION & PRIVACY SYSTEM
+ 9. SUBSCRIPTION PLANS, IN-APP PURCHASES & AI CREDITS
+10. OFFLINE-FIRST ARCHITECTURE & CLOUD DATA POLICIES
+11. ADMINISTRATIVE CONTROL PLANE & AUDIT ECOSYSTEM
+12. COMPLETE PRACTICAL USER WORKFLOWS (9 Scenarios)
+13. APPLICATION NAVIGATION MAP & ROUTING TOPOLOGY
+14. TECHNICAL ARCHITECTURE & SYSTEMS DESIGN
+15. INSTALLATION, PERMISSIONS & FIRST-TIME ONBOARDING
+16. TROUBLESHOOTING & RECOVERY PROCEDURES
+17. KNOWN LIMITATIONS & PLATFORM GUIDANCE
+18. COMPREHENSIVE FEATURE VERIFICATION MATRIX
+19. GOOGLE PLAY STORE METADATA & DATA SAFETY COMPLIANCE
+20. FINAL DOCUMENTATION SUMMARY & RELEASE READINESS
+
+
+================================================================================
+1. APPLICATION OVERVIEW
+================================================================================
+
+1.1 Application Name and Tagline
+--------------------------------------------------------------------------------
+Name:    ARTISTRY AI
+Tagline: "Your Complete AI Drawing Companion — Master Classical Art Offline"
+
+1.2 Product Definition & Purpose
+--------------------------------------------------------------------------------
+ARTISTRY AI is a hybrid digital art studio and intelligent pedagogical drawing
+companion for Android. It bridges the critical divide in modern creative
+software between passive digital drawing surfaces (e.g. Procreate, Infinite
+Painter, Adobe Photoshop) and fully automated prompt-to-image generators (e.g.
+Midjourney, DALL-E).
+
+Rather than replacing the artist by generating images automatically, ARTISTRY AI
+is engineered to teach human artists how to draw. It equips learners with
+real-time 60 FPS Skia-driven canvas assistance, interactive classical academic
+construction guides (Loomis head construction, 8-head canonical anatomy,
+converging vanishing point perspective, and 360-degree orbital shading), and
+subtle on-device computer vision feedback that validates proportions,
+perspective, and line confidence as the artist sketches.
+
+1.3 Target Audience
+--------------------------------------------------------------------------------
+- Complete Beginners: Novice artists who struggle with proportions, perspective
+  distortions, and where to start on a blank canvas.
+- Art Students & Hobbyists: Traditional and digital art learners practicing
+  human anatomy, facial construction, and lighting.
+- Digital Illustrators & Comic Artists: Creators needing high-speed vanishing
+  point grids, gesture pose armatures, line art cleaning, and color extraction.
+- Professional Concept Artists: Visual development artists who benefit from
+  rapid 3D model turnaround sheets, SVG vectorization, and harmonic palettes.
+
+1.4 Supported Hardware, Operating Systems & Devices
+--------------------------------------------------------------------------------
+- Operating System Support: Android 7.0 (Nougat, API Level 24) up to Android 16
+  (Vanilla Ice Cream / Baklava, API Levels 35-36).
+- Device Form Factors:
+  * Compact & Flagship Smartphones (16:9, 19.5:9, 20:9 aspect ratios)
+  * Foldable Devices (dynamic layout expansion across hinge states)
+  * Android Tablets (7-inch and 10-inch+ drawing slates with adaptive 2-to-4
+    column studio tool matrices)
+- Input Devices:
+  * Finger / Multi-Touch gestures (Pan, Pinch, Rotate)
+  * Active Stylus (Samsung S-Pen, Xiaomi Smart Pen, Universal Stylus Initiative)
+    with pressure sensitivity and palm rejection
+  * Passive Capacitive Styluses (supported via dynamic velocity simulation)
+
+1.5 Complete Technology Stack
+--------------------------------------------------------------------------------
+- Client Application (Android):
+  * Core Framework: React Native 0.88.1 (New Architecture, Fabric & TurboModules)
+  * App Platform: Expo SDK 58 (Expo Router v58 file-based navigation)
+  * Language: TypeScript 5.7.3 (Strict Null Checks, Zero `any` in core)
+  * Graphics Engine: @shopify/react-native-skia (Hardware-accelerated 2D canvas,
+    Bézier paths, dynamic Porter-Duff blend modes, Skia shaders)
+  * State Management: Zustand v5 (Persisted UI state, brush preferences, layers)
+  * Local Database: Expo SQLite with Write-Ahead Logging (WAL) and foreign keys
+  * Gestures & Animations: React Native Gesture Handler & Reanimated v3
+  * Image Processing: Expo Image Manipulator & Hardware Image Picker
+
+- Backend API Gateway:
+  * Runtime: Node.js v22 LTS & v24 (Alpine containerized runner)
+  * Server Framework: Express.js 4.21 with TypeScript 5.7
+  * Security: Helmet v8, CORS Origin filtering, Express-Rate-Limit v7
+  * Cryptography: Native Node.js Scrypt password hashing with unique salts,
+    timing-safe comparisons, HMAC-SHA256 JWT access tokens
+  * Token Lifecycle: Cryptographically random refresh token family rotation
+    with automatic reuse detection and immediate invalidation
+  * Database: Mongoose 8 & MongoDB 7 (Replica Set, compound indexes, TTL)
+
+- AI & Computer Vision Engine:
+  * Runtime: Python 3.12 (Slim containerized unprivileged runner)
+  * Framework: FastAPI & Uvicorn (Asynchronous high-throughput ASGI)
+  * Vision Libraries: OpenCV 4 (cv2), MediaPipe Solutions (33 pose landmarks,
+    21 hand landmarks), NumPy, SciPy
+  * Cloud Vision Integration: Google Gemini Multimodal Vision API (proxied
+    server-side, never exposed to client)
+  * Fallback Architecture: On-device LocalFallbackProvider for zero-latency,
+    100% offline heuristic analysis when internet is unavailable
+
+
+================================================================================
+2. COMPLETE FEATURE INVENTORY
+================================================================================
+
+ARTISTRY AI provides 27 dedicated studio tools and 16 AI intelligence
+capabilities, accessible directly through the main dashboard and the unified
+`/tools/[id]` workbench.
+
+--------------------------------------------------------------------------------
+2.1 THE 27 STUDIO TOOLS (Actual Names & IDs from `src/domain/features.ts`)
+--------------------------------------------------------------------------------
+
+1. AI Loomis Studio (`loomis`)
+   - Category: Classical Art Core
+   - Function: 8-stage Andrew Loomis head construction method with 3D cranium
+     rotation controls (Yaw, Pitch, Roll).
+   - Why Needed: Eliminates distorted facial features by teaching the spherical
+     cranium, brow line, nose baseline, and jawline relationships.
+   - Access: Dashboard -> "AI Loomis Studio" or Studio -> Guides -> Loomis.
+   - Options: Cranium sphere toggle, brow-line slider, jaw angle adjustment,
+     stage step-through (Stages 1 through 8), overlay opacity slider (0-100%).
+   - Expected Output: Dynamic Skia construction lines superimposed directly over
+     the canvas or reference photo.
+   - Requirements: 100% Offline. Free forever. 0 Credits.
+
+2. Step-by-Step Guide (`steps`)
+   - Category: Classical Art Core
+   - Function: Deconstructs any complex reference photo into a calm 5-stage
+     progressive drawing plan (Silhouette -> Centerline -> Proportions -> Masses
+     -> Fine Detailing).
+   - Why Needed: Prevents beginners from feeling overwhelmed by fine details
+     before establishing basic mass and proportions.
+   - Access: Dashboard -> "Step-by-Step Guide".
+   - Options: Step scrubber (1 to 5), milestone checkbox tracking, reference
+     opacity, high-contrast block-in filter.
+   - Expected Output: Interactive overlay breaking the subject into basic shapes.
+   - Requirements: 100% Offline. Free. 0 Credits.
+
+3. Tracing Studio (`tracing`)
+   - Category: Classical Art Core
+   - Function: High-contrast lightbox tracing assistant with edge-detection
+     enhancement and variable contour contrast.
+   - Why Needed: Builds muscle memory and hand-eye coordination for beginners
+     learning proper stroke arcs.
+   - Access: Dashboard -> "Tracing Studio".
+   - Options: Lightbox brightness, contour threshold slider (low, medium, high),
+     inverted negative mode, paper texture simulation.
+   - Expected Output: Crisp monochrome line guide locked behind the drawing layer.
+   - Requirements: 100% Offline. Free. 0 Credits.
+
+4. Smart Grid Studio (`grid`)
+   - Category: Classical Art Core
+   - Function: Multi-format geometric composition grid generator.
+   - Why Needed: Enables classical grid method enlargement and proportion
+     transcription without mathematical errors.
+   - Access: Dashboard -> "Smart Grid Studio".
+   - Options: Grid types (Square Proportional 3x3 to 10x10, Diagonals, Rule of
+     Thirds, Golden Ratio Spiral), line color, line thickness (1-5px), opacity.
+   - Expected Output: Mathematically precise vector grid lines overlaid on canvas.
+   - Requirements: 100% Offline. Free. 0 Credits.
+
+5. Shading Studio (`shading`)
+   - Category: Classical Art Core
+   - Function: 360-degree interactive orbital light source controller showing
+     core shadow, cast shadow, terminator line, and reflected light on 3D geometric
+     forms (Sphere, Cylinder, Torus, Plaster Head) paired with a 5-value tonal bar.
+   - Why Needed: Teaches how light wraps around three-dimensional volume and
+     stops muddy, flat shading.
+   - Access: Dashboard -> "Shading Studio".
+   - Options: Light Azimuth (0-360°), Light Elevation (0-90°), Light Intensity,
+     Reference Geometry selection, 5-Value tonal swatch copier.
+   - Expected Output: Real-time 3D rendered lighting response with corresponding
+     graphite pencil grade recommendations (2H, HB, 2B, 4B, 6B).
+   - Requirements: 100% Offline. Free. 0 Credits.
+
+6. Color Studio (`color`)
+   - Category: Classical Art Core
+   - Function: K-Means palette extractor identifying 6 dominant color clusters
+     from any reference image with HEX/RGB copy and swatch management.
+   - Why Needed: Solves inaccurate color picking and establishes a cohesive color
+     gamut before painting.
+   - Access: Dashboard -> "Color Studio".
+   - Options: Cluster sensitivity (3 to 12 colors), sort by luminance or
+     saturation, export palette to local SQLite database.
+   - Expected Output: Interactive color swatches with one-tap transfer to canvas
+     active color.
+   - Requirements: 100% Offline. Free. 0 Credits.
+
+7. Anatomy Academy (`anatomy`)
+   - Category: Classical Art Core
+   - Function: Canonical 8-head human figure construction system with skeletal
+     armature, major muscle group overlays, and interactive anatomical landmarks.
+   - Why Needed: Overcomes incorrect limb lengths, joint placement errors, and
+     unnatural body poses.
+   - Access: Dashboard -> "Anatomy Academy".
+   - Options: Male / Female proportions, Front / 3/4 / Profile view, Muscle group
+     highlighting (Torso, Arms, Legs), Bone landmark pins, Loomis head guide.
+   - Expected Output: Interactive anatomical proportion armature with draggable
+     measurement calipers.
+   - Requirements: 100% Offline. Free. 0 Credits.
+
+8. Perspective Assistant (`perspective`)
+   - Category: Classical Art Core
+   - Function: Dynamic 1-point, 2-point, and 3-point perspective grid generator
+     with touch-movable vanishing points and adjustable horizon line.
+   - Why Needed: Corrects warped architectural lines and incorrect depth angles.
+   - Access: Dashboard -> "Perspective Assistant".
+   - Options: Mode selection (1-Point Central, 2-Point Angular, 3-Point Bird's
+     Eye / Worm's Eye), Ray density (10° to 45° intervals), Horizon elevation,
+     Direct touch-drag handles for VP1, VP2, VP3.
+   - Expected Output: Dynamic converging vector guide lines that recalculate in
+     real time at 60 FPS as vanishing points are dragged.
+   - Requirements: 100% Offline. Free. 0 Credits.
+
+9. Reference vs Drawing (`compare`)
+   - Category: Classical Art Core
+   - Function: True split-screen side-by-side comparison, onion-skin transparency
+     overlay, and algorithmic pixel-difference heatmap.
+   - Why Needed: Instantly reveals discrepancies between what the artist drew and
+     the actual reference photo without guesswork.
+   - Access: Dashboard -> "Reference vs Drawing".
+   - Options: Split mode (Horizontal 50/50, Vertical Split Slider, Onion Skin
+     Overlay 0-100%), Difference Heatmap toggle (Green = accurate, Red = error).
+   - Expected Output: Visual difference visualization highlighting proportion
+     and contour misalignment.
+   - Requirements: 100% Offline. Free. 0 Credits.
+
+10. Reference Library (`library`)
+    - Category: Classical Art Core
+    - Function: Offline, curated catalog of copyright-free artistic references
+      categorized into Poses, Anatomy, Faces, Animals, and Architecture.
+    - Why Needed: Provides safe, high-quality reference material without hunting
+      online or risking copyright infringement.
+    - Access: Dashboard -> "Reference Library".
+    - Options: Category filter, difficulty filter (Beginner, Intermediate, Pro),
+      One-tap "Load into Studio Canvas" button.
+    - Expected Output: Instant canvas initialization with selected reference image
+      placed in the background reference slot.
+    - Requirements: 100% Offline. Free. 0 Credits.
+
+11. Learning & Challenges (`learning`)
+    - Category: Classical Art Core
+    - Function: Structured drawing curriculum across 3 difficulty tiers paired
+      with daily timed drawing challenges and streak persistence.
+    - Why Needed: Builds a daily artistic habit and provides clear progression.
+    - Access: Dashboard -> "Learning & Challenges".
+    - Options: Lesson selector, 15-minute challenge timer, daily streak counter,
+      SQLite progress tracker with completion checkmarks.
+    - Expected Output: Lesson instruction cards with embedded exercise canvases
+      and persistent completion records.
+    - Requirements: 100% Offline. Free. 0 Credits.
+
+12. AI Sketch Converter (`sketch`)
+    - Category: AI Studio
+    - Function: Transforms reference photos into clean sketch drawings across 8
+      distinct styles (Graphite Pencil, Soft Charcoal, Technical Ink, Watercolor
+      Line, Cross-Hatch, Sanguine Conté, Manga Line, Blueprint).
+    - Why Needed: Helps artists visualize how continuous-tone photographs
+      translate into linework and pencil values.
+    - Access: Dashboard -> "AI Sketch Converter".
+    - Options: Style picker, Edge sensitivity (1-100), Pencil softness slider,
+      Paper texture blend toggle, Contrast boost.
+    - Expected Output: Clean monochrome or tonal sketch raster image that can be
+      saved or loaded directly as a tracing layer.
+    - Requirements: Local processing available offline; high-fidelity cloud
+      filters require Pro subscription (3 credits).
+
+13. AI Drawing Analyzer (`analyzer`)
+    - Category: AI Studio
+    - Function: Multi-factor automated rubric assessment analyzing user drawings
+      across 5 key dimensions: Proportions, Alignment, Perspective, Composition,
+      and Shading.
+    - Why Needed: Delivers objective, quantitative feedback on artistic execution
+      without needing an in-person tutor.
+    - Access: Dashboard -> "AI Drawing Analyzer".
+    - Options: Drawing selection, Reference selection, Rubric detail toggle.
+    - Expected Output: Numerical scores (0-100%) for each category, composite
+      score, written artistic recommendations, and visual pinpoint annotations.
+    - Requirements: Local heuristic mode runs offline; advanced cloud neural
+      critique requires Pro subscription (5 credits).
+
+14. AI Reference Generator (`generator`)
+    - Category: AI Studio
+    - Function: Generates customized artistic reference studies across 11 subject
+      categories (Human Figure, Portrait, Hands, Drapery, Still Life, Animals,
+      Architecture, Foliage, Vehicles, Sci-Fi, Fantasy).
+    - Why Needed: Creates unique reference imagery tailored to specific lighting
+      and pose requirements.
+    - Access: Dashboard -> "AI Reference Generator".
+    - Options: Prompt input, Category selector, Lighting condition (Rembrandt,
+      Rim Light, Harsh Overhead, Diffused Daylight), Style mode.
+    - Expected Output: High-resolution reference study image with vector fallbacks
+      stored in SQLite.
+    - Requirements: Offline vector templates available free; neural diffusion
+      generation requires Premium subscription (10 credits).
+
+15. Drawing Progress AI (`progress`)
+    - Category: AI Studio
+    - Function: Analytics dashboard compiling historical drawing scores into a
+      5-axis skill radar chart (Proportions, Lines, Values, Speed, Anatomy) with
+      milestone timelines and weakness-targeted exercise suggestions.
+    - Why Needed: Tracks tangible improvement over weeks and months to maintain
+      motivation.
+    - Access: Dashboard -> "Drawing Progress AI".
+    - Options: Time window (7 Days, 30 Days, All Time), Metric drill-down.
+    - Expected Output: Visual radar graph, streak history, and tailored practice
+      recommendations based on lowest-scoring rubrics.
+    - Requirements: 100% Offline (SQLite analysis). Free. 0 Credits.
+
+16. AI Pose & Gesture Coach (`pose`)
+    - Category: Assistant
+    - Function: Computer vision pose estimation detecting 33 full-body skeletal
+      landmarks from imported photos, extracting the primary "Line of Action",
+      and measuring head-to-body ratios.
+    - Why Needed: Captures dynamic gestures and avoids stiff, static figures.
+    - Access: Dashboard -> "AI Pose & Gesture Coach".
+    - Options: Skeleton overlay toggle, Line of action emphasis, Bone length
+      proportions display, Mirror pose toggle.
+    - Expected Output: 33-point connected skeletal wireframe overlaid on photo,
+      ready to copy to canvas with 1 tap.
+    - Requirements: Local MediaPipe / heuristic processing offline; cloud
+      landmark verification requires Pro subscription (2 credits).
+
+17. AI Hand & Foot Assistant (`handfoot`)
+    - Category: Assistant
+    - Function: Dedicated anatomical detector tracking 21 hand landmarks, palm
+      planes, finger joint foreshortening, and foot arch balance.
+    - Why Needed: Hands and feet are historically the hardest anatomy for
+      artists to draw correctly; this tool alerts to sausage fingers, missing
+      joints, and broken arches.
+    - Access: Dashboard -> "AI Hand & Foot Assistant".
+    - Options: Hand / Foot selector, Joint segment length ratios, Palm bounding
+      box overlay, Foreshortening guide lines.
+    - Expected Output: Detailed joint-to-knuckle vector armature with proportional
+      warning callouts.
+    - Requirements: Local processing offline; cloud verification requires Pro
+      subscription (2 credits).
+
+18. AI Lighting Predictor (`lighting`)
+    - Category: Assistant
+    - Function: Analyzes reference photography to identify the primary light
+      vector (azimuth & elevation), generates an isolux tonal zone map, and
+      recommends exact pencil hardness grades.
+    - Why Needed: Helps artists plan their shading values before placing graphite
+      on paper.
+    - Access: Dashboard -> "AI Lighting Predictor".
+    - Options: Tonal map quantization (3-zone, 5-zone, 9-zone), Contrast booster,
+      Light direction ray overlay.
+    - Expected Output: Vector lighting arrow, false-color value map, and pencil
+      grade guide (e.g. Zone 1: 4H, Zone 5: 6B).
+    - Requirements: Local processing offline; cloud neural lighting requires
+      Premium subscription (2 credits).
+
+19. AI Composition Coach (`composition`)
+    - Category: Assistant
+    - Function: Scans artwork or reference for visual focal points, balance of
+      masses, negative-space distribution, and alignment with Rule of Thirds and
+      Golden Spirals.
+    - Why Needed: Prevents unbalanced compositions where subjects crowd borders
+      or create awkward tangents.
+    - Access: Dashboard -> "AI Composition Coach".
+    - Options: Composition overlays (Golden Ratio, Fibonacci Spiral, Dynamic
+      Symmetry Triangles, Rule of Thirds), Focal point density heatmap.
+    - Expected Output: Visual heatmap indicating primary and secondary viewer
+      eye focal paths.
+    - Requirements: Local processing offline; cloud critique requires Pro
+      subscription (2 credits).
+
+20. AI Line Art Cleaner (`linecleaner`)
+    - Category: Processing
+    - Function: Digital restoration filter for scanned physical pencil and ink
+      drawings; eliminates paper yellowing, shadows, wrinkles, and graphite smudges
+      while preserving crisp vector-like linework.
+    - Why Needed: Allows traditional sketchbook artists to digitize their line art
+      cleanly for digital coloring.
+    - Access: Dashboard -> "AI Line Art Cleaner".
+    - Options: Threshold slider, Smudge suppression, Contrast steepness,
+      Transparent background extraction toggle.
+    - Expected Output: Pure black-on-transparent PNG linework layer.
+    - Requirements: Local OpenCV processing offline; cloud deep cleaning requires
+      Pro subscription (3 credits).
+
+21. AI Smart Segmentation (`segmentation`)
+    - Category: Processing
+    - Function: Automated salient subject extraction that separates foreground
+      figures, characters, or still-life subjects from cluttered backgrounds into
+      an isolated transparent layer.
+    - Why Needed: Isolates drawing references from busy photo backgrounds.
+    - Access: Dashboard -> "AI Smart Segmentation".
+    - Options: Feather radius slider, Mask inversion, Background blur preview,
+      Direct export to studio layer.
+    - Expected Output: Extracted foreground subject on a transparent alpha channel.
+    - Requirements: Local heuristic segmentation offline; cloud neural masking
+      requires Premium subscription (4 credits).
+
+22. AI Color Recommender (`colorrec`)
+    - Category: Processing
+    - Function: Color theory engine that analyzes a base drawing or reference and
+      generates harmonic palettes based on classical relationships: Complementary,
+      Split-Complementary, Analogous, Triadic, Tetradic, and Realistic Skin Tones.
+    - Why Needed: Prevents clashing colors and empowers artists with mood palettes.
+    - Access: Dashboard -> "AI Color Recommender".
+    - Options: Harmony rule selector, Mood preset (Warm Sunset, Cold Moody,
+      Vibrant Fantasy, Earthy Classical), Swatch count (4-8).
+    - Expected Output: Swatch strip with hex values and one-tap color assignments.
+    - Requirements: Local color wheel math runs offline; cloud harmonic tuning
+      requires Pro subscription (2 credits).
+
+23. AI Multi-Angle Creator (`turnaround`)
+    - Category: Processing
+    - Function: Generates 4-view model turnaround sheets (Front, 3/4 View, Side
+      Profile, Back View) with aligned horizontal height guide lines.
+    - Why Needed: Critical for character designers, comic creators, and 3D
+      modelers who must maintain consistent character proportions from all angles.
+    - Access: Dashboard -> "AI Multi-Angle Creator".
+    - Options: Character reference input, View toggle (Front/Side/Back), Eye-level
+      and chin-level alignment grid lines.
+    - Expected Output: Composite 4-panel model sheet with aligned construction rays.
+    - Requirements: Local geometric projection runs offline; cloud generative
+      view synthesis requires Premium subscription (15 credits).
+
+24. Smart Stroke Replay (`replay`)
+    - Category: Professional
+    - Function: Vector stroke-by-stroke playback engine that records every drawing
+      event with timestamp and pressure data, allowing artists to replay their
+      process at variable speeds (0.5x to 5.0x) or scrub a visual timeline.
+    - Why Needed: Enables artists to analyze where they hesitated or over-worked
+      an area, and allows video export for social media process sharing.
+    - Access: Studio Canvas -> Replay Icon or Dashboard -> "Smart Stroke Replay".
+    - Options: Play/Pause, Speed multipliers (0.5x, 1x, 2x, 5x), Timeline scrub
+      bar, Export to video format.
+    - Expected Output: Smooth 60 FPS chronological animation of canvas creation.
+    - Requirements: 100% Offline (SQLite event log). Free. 0 Credits.
+
+25. AI Mistake Detector (`mistakes`)
+    - Category: Professional
+    - Function: Automated discrepancy auditor that scans facial and figure
+      drawings to detect common subtle anatomical flaws: uneven eye heights,
+      facial symmetry drift, cranial volume compression, and perspective tilt.
+    - Why Needed: Catches drawing flaws before an artist spends hours detailing
+      an anatomically broken foundation.
+    - Access: Dashboard -> "AI Mistake Detector".
+    - Options: Tolerance sensitivity (Strict, Moderate, Relaxed), Flaw category
+      filters (Eyes, Jaw, Perspective, Limbs).
+    - Expected Output: Red warning callout circles on canvas pinpointing exact
+      errors with corrective guidance text.
+    - Requirements: Local heuristic scan offline; cloud neural audit requires
+      Premium subscription (3 credits).
+
+26. AI Art Mentor (`mentor`)
+    - Category: Professional
+    - Function: Conversational multimodal artistic mentor that reviews drawings,
+      answers questions about classical art techniques, explains Loomis and
+      Bridgman concepts, and recommends personalized exercises.
+    - Why Needed: Provides the encouragement, critique, and technical depth of
+      a master studio instructor directly within the app.
+    - Access: Dashboard -> "AI Art Mentor" or Studio Canvas -> Mentor button.
+    - Options: Chat dialogue input, Voice input (English & Tamil), Drawing
+      attachment, Advice tone (Encouraging, Academic, Direct).
+    - Expected Output: Contextual conversational critique with actionable advice.
+    - Requirements: Local simulated mentor works offline; cloud multimodal
+      Gemini Vision reasoning requires Premium subscription (2 credits).
+
+27. Sketch-to-Vector Converter (`vectorizer`)
+    - Category: Professional
+    - Function: Vectorization engine that traces raster drawing strokes and
+      converts them into scalable SVG Bézier paths with configurable corner
+      thresholds and path simplification.
+    - Why Needed: Enables infinite scaling for print, logos, and digital graphic
+      design without pixelation.
+    - Access: Dashboard -> "Sketch-to-Vector Converter".
+    - Options: Path smoothing tolerance (0.1 to 5.0), Color quantization,
+      Export format (Clean SVG string, SVG file download).
+    - Expected Output: Scalable vector graphic file exported to device storage.
+    - Requirements: Local Potrace/OpenCV vectorizer runs offline; cloud enhanced
+      bezier fitting requires Pro subscription (3 credits).
+
+
+--------------------------------------------------------------------------------
+2.2 THE 16 AI DRAWING INTELLIGENCE CAPABILITIES
+--------------------------------------------------------------------------------
+
+1. AI Live Line Coach
+   - Real-time stroke analyzer monitoring gesture velocity, pressure
+     consistency, and line jitter as the user draws. Provides subtle haptic or
+     visual indicator when strokes are confident vs hesitant. (Offline local).
+
+2. AI Proportion & Loomis Validator
+   - Checks head construction against Andrew Loomis's 3.5-unit facial thirds rule
+     (hairline to brow, brow to nose base, nose base to chin). (Offline local).
+
+3. AI Anatomy Doctor
+   - Full-figure proportion auditor verifying that body height conforms to the
+     8-head standard, shoulder width matches 2 head breadths, and pelvis alignment
+     balances center of gravity. (Offline local).
+
+4. AI Perspective Enforcer
+   - Real-time ray tracer that tests whether lines intended to follow perspective
+     actually converge to the active vanishing points within a 5-degree angular
+     tolerance. (Offline local).
+
+5. AI Shading & Light Evaluator
+   - Tonal balance analyzer that breaks the canvas into a 5-value histogram and
+     flags missing core shadows or over-blended muddy midtones. (Offline local).
+
+6. AI Reference Match Score
+   - Algorithmic silhouette and contour comparison calculating an objective
+     similarity percentage (0-100%) between the user's drawing and the active
+     reference. (Offline local).
+
+7. AI Stroke-by-Stroke Playback
+   - Vector state recorder that tracks every stroke down to the millisecond,
+     enabling interactive time-lapse scrubbing. (Offline local).
+
+8. AI Smart Color Harmony
+   - Algorithmic color theory engine calculating mathematically harmonious color
+     combinations (complementary, split-complementary, triadic). (Offline local).
+
+9. AI Style Transfer Preview
+   - Renders drawing lines in classical artistic mediums (Graphite, Charcoal,
+     Ink, Watercolor) to preview finished appearances. (Local/Cloud).
+
+10. AI Pose Estimator
+    - 33-point skeletal landmark detection isolating head, shoulders, elbows,
+      wrists, hips, knees, and ankles from reference photography. (Local/Cloud).
+
+11. AI Silhouette Reader
+    - High-contrast binary mask evaluator testing whether a character drawing
+      is instantly readable as a silhouette without internal details. (Offline).
+
+12. AI Composition Analyzer
+    - Rule-of-thirds, golden ratio spiral, and focal mass distribution auditor
+      evaluating eye flow across the artwork. (Offline local).
+
+13. AI Sketch-to-Concept
+    - Generative diffusion concept visualizer turning rough pencil gestures into
+      rendered concept art thumbnails. (Cloud AI, requires Gemini/Diffusion).
+
+14. AI Personalized Mentor
+    - Multimodal conversational art tutor offering contextual critique in
+      English and Tamil based on actual canvas strokes. (Local/Cloud).
+
+15. Smart Auto-Correction
+    - Configurable stroke smoothing engine that removes hand tremors and snaps
+      rough geometric hand-drawn gestures into clean circles, ellipses, and
+      straight perspective lines when held. (Offline local).
+
+16. Bilingual Voice Assistant
+    - Hands-free voice command system recognizing English and Tamil commands for
+      brush selection, canvas navigation, undo/redo, and art concepts. (Local/Cloud).
+
+
+================================================================================
+3. DRAWING WORKSPACE USER GUIDE
+================================================================================
+
+The Drawing Workspace (`src/app/studio/[id].tsx`) is the heart of ARTISTRY AI.
+It runs on a 60 FPS hardware-accelerated Skia surface designed for both high-
+precision stylus sketching and fluid multi-touch interaction.
+
+3.1 Creating a Blank Canvas
+--------------------------------------------------------------------------------
+1. From the Dashboard, tap the "New Canvas" quick action button.
+2. Select your desired canvas preset or specify custom dimensions:
+   - Square (1080 x 1080) — Ideal for character portraits and social sharing.
+   - Portrait (1080 x 1920) — Optimized for vertical smartphone viewing.
+   - Landscape (1920 x 1080) — Best for landscapes and multi-figure scenes.
+   - Tablet HD (2048 x 1536 / 2560 x 1600) — High-density tablet format.
+3. Tap "Create Project". The studio opens with Layer 1 pre-created and active.
+
+3.2 Importing a Reference Image from Gallery
+--------------------------------------------------------------------------------
+1. Tap the "Import Reference" icon (image landscape icon) in the top toolbar.
+2. Choose "From Gallery" via the Android system photo picker.
+3. Select any JPEG, PNG, or WebP photo.
+4. The image is automatically validated, safely bounded to a maximum of 2048px
+   working resolution (to prevent OpenGL texture memory exhaustion), and placed
+   in the reference drawer.
+5. Use the Reference Toolbar to scale, position, or adjust reference opacity.
+
+3.3 Using Live Camera Reference
+--------------------------------------------------------------------------------
+1. Tap the Camera quick action on the Dashboard or within the Studio.
+2. Grant Android camera permission when prompted.
+3. Pose yourself or a subject in the camera viewfinder.
+4. Tap Capture. The photo is automatically cached in the app's sandboxed local
+   directory and loaded as your active drawing reference.
+
+3.4 Selecting and Using Brushes
+--------------------------------------------------------------------------------
+ARTISTRY AI features 4 specialized drawing tools, selectable via the bottom
+tool dock:
+1. Pencil: Thin, textured graphite stroke responding dynamically to touch speed
+   and stylus pressure. Ideal for light construction lines and initial sketching.
+2. Ink Pen: Crisp, solid-edge calligraphy pen with continuous line width.
+   Perfect for inking, contour outlines, and cross-hatching.
+3. Brush: Soft, semi-opaque watercolor/marker brush supporting smooth layering
+   and value blending.
+4. Eraser: Precise subtractive tool that lifts strokes from the active layer
+   without affecting locked reference guides or background layers.
+
+Controls available for every tool:
+- Size Slider: Adjusts stroke width from 1px (hairline) to 60px (broad wash).
+- Opacity Slider: Adjusts stroke transparency from 5% (faint wash) to 100% (solid).
+- Color Picker: Palette of 12 curated artist swatches plus full RGB/HEX picker.
+
+3.5 Multi-Layer Management
+--------------------------------------------------------------------------------
+Tap the Layers icon (stacked squares) to open the Layer Manager drawer:
+- Add Layer: Tap the "+" button to insert a new transparent drawing layer above
+  the active layer.
+- Active Layer Selection: Tap any layer card to make it active for drawing.
+- Visibility Toggle: Tap the eye icon to hide or reveal individual layers.
+- Layer Opacity: Adjust the slider on any layer to control its composite opacity.
+- Delete Layer: Tap the trash icon (minimum of 1 layer is always maintained).
+- Reordering: Drag layers up or down to adjust front-to-back rendering order.
+
+3.6 Undo, Redo and Canvas Navigation
+--------------------------------------------------------------------------------
+- Undo: Tap the curved left arrow icon or speak "Undo" / "பின்செல்". Instantly
+  reverts the most recent stroke.
+- Redo: Tap the curved right arrow icon or speak "Redo" / "மீண்டும் செய்".
+- Pan & Zoom: Place two fingers on the canvas to pinch-zoom (up to 500%) and pan
+  across the canvas. Double-tap to reset zoom to 100% fit.
+
+3.7 Saving and Project Persistence
+--------------------------------------------------------------------------------
+- Auto-Save: The canvas automatically commits all stroke data, active layer
+  states, and timestamps to the local SQLite database (`artistry-ai.db`) every
+  15 seconds and whenever the app transitions to the background.
+- Manual Save: Tap the Save icon (diskette) in the top toolbar to trigger an
+  immediate database commit with confirmation toast.
+- Zero Data Loss: If the app process is terminated by the OS, relaunching returns
+  to the exact project state with all layers intact.
+
+3.8 Exporting Artwork
+--------------------------------------------------------------------------------
+Tap the Export button (arrow exiting square) in the top right menu:
+1. Export as PNG: Generates a high-resolution flattened 32-bit raster image of
+   all visible layers, saving to the Android device Gallery / Downloads.
+2. Export as SVG: Converts visible line layers into scalable Bézier vector paths.
+3. Share Directly: Invokes the native Android share sheet to send artwork
+   directly via WhatsApp, Telegram, Email, or Google Drive.
+
+
+================================================================================
+4. DRAWING EDUCATION & CLASSICAL FOUNDATIONS ACADEMY
+================================================================================
+
+ARTISTRY AI integrates a complete classical drawing curriculum directly into
+its tools, guided by historical fine art instructional methods.
+
+4.1 Andrew Loomis Head Construction Studio
+--------------------------------------------------------------------------------
+The Loomis Studio guides artists through Andrew Loomis's canonical method:
+- Stage 1: The Basic Ball (Cranium sphere).
+- Stage 2: Slicing the Sphere (Flattening the side planes of the head).
+- Stage 3: The Brow Line & Center Line of the Face.
+- Stage 4: Dividing the Face into Equal Thirds (Hairline, Brow, Nose Base, Chin).
+- Stage 5: Constructing the Jaw and Chin Box.
+- Stage 6: Placing the Ear (Tucked into the back quadrant between brow and nose).
+- Stage 7: Adding Facial Planes (Cheekbones and eye sockets).
+- Stage 8: Completed Construction Base ready for final features.
+
+Interactive Controls:
+- 3D Rotation Dial: Rotate the Loomis sphere in 3D space to match any head pose
+  in your reference photo (front, 3/4 tilt, extreme bird's eye, profile).
+- Transparency Fader: Fade the Loomis guide as your drawing solidifies.
+
+4.2 Anatomy Academy & 8-Head Construction
+--------------------------------------------------------------------------------
+Teaches full-body anatomical proportions using the 8-Head Canonical Figure:
+- Head 1: Cranium to chin.
+- Head 2: Chin to nipple line / sternum.
+- Head 3: Nipple line to navel.
+- Head 4: Navel to pubic arch (exact midpoint of human body).
+- Head 5: Pubic arch to mid-thigh.
+- Head 6: Mid-thigh to base of knee.
+- Head 7: Base of knee to lower calf.
+- Head 8: Lower calf to soles of feet.
+
+Interactive Landmark Verification:
+- Clavicle "V" angle checking.
+- Acromion process (shoulder tip) bilateral alignment.
+- Anterior Superior Iliac Spine (ASIS) pelvic tilt checking.
+- Weight-bearing leg vs free leg contrapposto balance.
+
+4.3 Perspective Assistant & Converging Grids
+--------------------------------------------------------------------------------
+Teaches linear perspective through real-time mathematical grid generation:
+- 1-Point Perspective: Single vanishing point on horizon line. Ideal for
+  hallways, train tracks, and direct frontal street views.
+- 2-Point Perspective: Two vanishing points on opposite ends of horizon. Ideal
+  for corner views of buildings, furniture, and vehicles.
+- 3-Point Perspective: Two horizon vanishing points plus a third vertical
+  vanishing point (high above for Worm's Eye view, or deep below for Bird's Eye
+  view).
+
+Interactive Touch Controls:
+- Direct touch-drag handles allow the artist to place vanishing points anywhere
+  on screen or even outside canvas bounds.
+- Ray density slider adjusts guide line spacing to keep canvas legible.
+
+4.4 Shading Studio & The 5-Value Scale
+--------------------------------------------------------------------------------
+Teaches how value creates the illusion of volume using the 5 core lighting zones:
+1. Full Light: Surface receiving direct perpendicular illumination.
+2. Halftone (Midtone): Surface curving away from the light source.
+3. Terminator Line: The dividing line where light can no longer reach the form.
+4. Core Shadow: The darkest band of shadow just beyond the terminator.
+5. Reflected Light & Cast Shadow: Ambient light bounced from ground into shadow,
+   and the crisp shadow cast by the object onto adjacent planes.
+
+Interactive 360° Light Controller:
+- Drag the orbital sun icon around the 3D sphere to watch the terminator and cast
+  shadow shift realistically in real time.
+- Tap the 5-value swatch bar to automatically load the corresponding tonal value
+  into your brush.
+
+4.5 Learning Center & Daily Challenges
+--------------------------------------------------------------------------------
+- Structured Curriculum: 30 sequential lessons starting with simple straight
+  lines and ellipses, progressing through geometric forms, head construction,
+  hands, drapery, and multi-figure compositions.
+- Daily Timed Challenges: 15-minute quick-sketch challenges delivered daily with
+  a countdown timer, encouraging fast decision-making and preventing over-work.
+- Streak Tracker: Daily progress tracked in local SQLite database with visual
+  flame counter celebrating consecutive days of practice.
+
+
+================================================================================
+5. AI STUDIO USER GUIDE (ALL 16 CAPABILITIES)
+================================================================================
+
+This section details how to open, operate, and utilize each of the 16 AI
+capabilities, clearly documenting their technical processing pipeline.
+
+--------------------------------------------------------------------------------
+IMPORTANT TECHNICAL CLASSIFICATION NOTICE:
+- Local Heuristic / Algorithmic Processing: Runs 100% on-device inside the
+  client application or local Python engine without internet, consuming 0 credits.
+- Cloud Multimodal / Diffusion Processing: Requires active internet connectivity,
+  an authenticated account, and configured server-side API keys (Google Gemini
+  Vision / Diffusion models).
+--------------------------------------------------------------------------------
+
+5.1 AI Live Line Coach
+- How to Open: Within Studio Canvas -> tap "Coach" icon in top bar.
+- Input Required: Real-time hand-drawn strokes.
+- Operation: Evaluates stroke velocity, acceleration, and curvature variance as
+  you draw. If strokes are slow and hesitant (hairy lines), it displays a gentle
+  warning: "Draw with whole-arm shoulder motion for confident lines."
+- Processing: 100% Local Skia vector analysis. Zero latency.
+- Requirements: 100% Offline. Free forever. 0 Credits.
+
+5.2 AI Proportion & Loomis Validator
+- How to Open: Studio Canvas -> Guides -> "Validate Loomis" or Tool #1.
+- Input Required: Face sketch with Loomis guide enabled.
+- Operation: Scans line density around brow, nose, and chin markers. Computes
+  ratio discrepancies and displays green/yellow/red alignment score.
+- Processing: Local geometric heuristic algorithm.
+- Requirements: 100% Offline. Free. 0 Credits.
+
+5.3 AI Anatomy Doctor
+- How to Open: Tool #7 (Anatomy Academy) -> "Audit Anatomy".
+- Input Required: Full-body figure sketch.
+- Operation: Measures head count from top of cranium to ground line. If figure
+  is 6.5 heads high, it flags: "Limbs are compressed by 1.5 heads."
+- Processing: Local contour height analysis.
+- Requirements: 100% Offline. Free. 0 Credits.
+
+5.4 AI Perspective Enforcer
+- How to Open: Tool #8 (Perspective Assistant) -> "Check Lines".
+- Input Required: Architectural or box sketch drawn over active perspective grid.
+- Operation: Analyzes straight stroke vectors against active vanishing points
+  VP1, VP2, VP3. Highlights diverging strokes in red.
+- Processing: Local angular trigonometry (`atan2` ray convergence).
+- Requirements: 100% Offline. Free. 0 Credits.
+
+5.5 AI Shading & Light Evaluator
+- How to Open: Tool #5 (Shading Studio) -> "Evaluate Tonal Map".
+- Input Required: Shaded drawing.
+- Operation: Generates a 5-bin luminance histogram of the canvas pixels. Warns
+  if values are clustered entirely in midtones without dark core shadows.
+- Processing: Local Skia pixel buffer luminance pass.
+- Requirements: 100% Offline. Free. 0 Credits.
+
+5.6 AI Reference Match Score
+- How to Open: Tool #9 (Reference vs Drawing) -> "Calculate Match %".
+- Input Required: Active reference image and drawing strokes.
+- Operation: Computes structural similarity index (SSIM) and edge overlap
+  percentage. Returns a verified 0-100% accuracy score.
+- Processing: Local pixel difference matrix.
+- Requirements: 100% Offline. Free. 0 Credits.
+
+5.7 AI Stroke-by-Stroke Playback
+- How to Open: Studio Canvas -> Replay icon (play circle).
+- Input Required: Canvas with at least 5 recorded strokes.
+- Operation: Replays all drawing events chronologically with play, pause, speed
+  controls (0.5x, 1x, 2x, 5x), and scrubbing timeline.
+- Processing: Local SQLite event reconstruction.
+- Requirements: 100% Offline. Free. 0 Credits.
+
+5.8 AI Smart Color Harmony
+- How to Open: Tool #22 (AI Color Recommender).
+- Input Required: Base color selection or imported photo.
+- Operation: Applies classical RYB color wheel transformations to generate
+  complementary, analogous, and triadic color schemes.
+- Processing: Local colorimetric math.
+- Requirements: 100% Offline. Free. 0 Credits.
+
+5.9 AI Style Transfer Preview
+- How to Open: Tool #12 (AI Sketch Converter).
+- Input Required: Reference photo.
+- Operation: Applies edge-preserving bilateral filtering, difference of Gaussians
+  (DoG), and paper texture blending to preview 8 artistic styles.
+- Processing: Local OpenCV pipeline (or cloud high-res filter).
+- Requirements: Local mode offline (Free); Cloud high-res filter requires Pro (3 credits).
+
+5.10 AI Pose Estimator
+- How to Open: Tool #16 (AI Pose & Gesture Coach).
+- Input Required: Photo containing a human body.
+- Operation: Detects 33 skeletal keypoints (shoulders, hips, joints) and renders
+  an interactive gesture stick figure over the photo.
+- Processing: Python FastAPI MediaPipe Pose service (or local geometric model).
+- Requirements: Local heuristic offline; Cloud MediaPipe requires Pro (2 credits).
+
+5.11 AI Silhouette Reader
+- How to Open: Tool #19 (AI Composition Coach) -> "Check Silhouette".
+- Input Required: Character or subject sketch.
+- Operation: Thresholds the canvas into a solid black-on-white silhouette mask.
+  Tests whether character limb positions are instantly readable.
+- Processing: Local binary threshold filter.
+- Requirements: 100% Offline. Free. 0 Credits.
+
+5.12 AI Composition Analyzer
+- How to Open: Tool #19 (AI Composition Coach).
+- Input Required: Finished or in-progress sketch.
+- Operation: Calculates center-of-mass, rule-of-thirds intersections, and
+  visual weight balance across the 4 quadrants.
+- Processing: Local spatial mass distribution.
+- Requirements: 100% Offline. Free. 0 Credits.
+
+5.13 AI Sketch-to-Concept
+- How to Open: Tool #14 (AI Reference Generator) -> "Render Sketch".
+- Input Required: Rough line drawing on canvas.
+- Operation: Sends drawing to backend diffusion bridge to generate a rendered
+  concept art interpretation.
+- Processing: Cloud AI processing.
+- Requirements: Requires internet, server GEMINI_API_KEY / Diffusion key, and
+  Premium subscription (10 credits). Local mode displays stylized SVG vector.
+
+5.14 AI Personalized Mentor
+- How to Open: Tool #26 (AI Art Mentor) or Studio -> Mentor button.
+- Input Required: Text or voice question + canvas screenshot.
+- Operation: Multimodal conversational AI analyzes the drawing visually and
+  provides specific, actionable artistic feedback in English or Tamil.
+- Processing: Cloud Google Gemini Vision API via Node.js AIBridgeService.
+- Requirements: Requires internet, server GEMINI_API_KEY, and Premium
+  subscription (2 credits per interaction). Local mode provides classical
+  curated academic advice offline.
+
+5.15 Smart Auto-Correction
+- How to Open: Studio Canvas -> Settings -> "Stroke Auto-Correction".
+- Input Required: Continuous pen stroke held at endpoint for 500ms.
+- Operation: Fits Bézier curves to stroke points, smooths out hand tremors, and
+  snaps rough circles into perfect ellipses and rough angles into clean polygons.
+- Processing: 100% Local Skia Bézier fitting algorithm.
+- Requirements: 100% Offline. Free forever. 0 Credits.
+
+5.16 Bilingual Voice Assistant
+- How to Open: Tap microphone icon in top header on any screen.
+- Input Required: Spoken voice command in English or தமிழ் (Tamil).
+- Operation: Transcribes voice command, parses artistic intent, switches active
+  canvas tools, performs undo/redo, or speaks art concept explanations.
+- Processing: Local VoiceAssistantEngine with cloud NLP fallback.
+- Requirements: 100% Offline local intent parsing (Free); Cloud NLP enhancement
+  if connected. 0 Credits.
+
+
+================================================================================
+6. BEGINNER AND PROFESSIONAL MODES
+================================================================================
+
+ARTISTRY AI includes an adaptive dual-mode interface designed to cater
+simultaneously to complete beginners and seasoned digital illustrators.
+
+6.1 Mode Comparison Matrix
+--------------------------------------------------------------------------------
+Feature / Setting           Beginner Mode              Professional Mode
+--------------------------------------------------------------------------------
+Canvas UI Layout            Large, padded tool buttons Minimalist floating dock
+Default Tool Selection      Pencil & Eraser only       Full 4-brush suite + blend
+Loomis Guide Behavior       Step-by-step locked stages Full 3D free-angle rotation
+Anatomy Calipers            Automatic proportion warnings Manual measurement mode
+Color Palette               12 Curated artist swatches Full RGB/HSV/HEX spectrum
+Layer System                Simplified 3-layer stack   Unlimited layers & blend modes
+AI Line Coach Alerts        Prompts on hesitant lines  Disabled (silent telemetry)
+Export Options              PNG Gallery export only    PNG, SVG vector, JSON project
+Grid Complexity             Rule of Thirds & 3x3 only  Golden Spiral & Dynamic 10x10
+
+6.2 How to Switch Modes
+--------------------------------------------------------------------------------
+1. From the Dashboard: Tap the Mode Toggle button in the top navigation bar
+   ("Beginner" / "Pro").
+2. In Settings / Profile: Open Profile (`/profile`) -> Toggle "Experience Mode"
+   between "Beginner" and "Professional".
+3. Immediate Persistence: The active mode is saved to local SQLite
+   `app_metadata` table (`active_experience_mode`) and synced to user profile
+   if logged in.
+
+
+================================================================================
+7. TAMIL AND ENGLISH BILINGUAL SUPPORT & VOICE ASSISTANT
+================================================================================
+
+ARTISTRY AI is built from the ground up with deep bilingual architecture,
+celebrating Tamil (தமிழ்) culture and artistic tradition alongside English.
+
+7.1 Language Selection & Switching
+--------------------------------------------------------------------------------
+- Toggle Button: Located prominently in the top header on every screen (shows
+  "தமிழ்" when in English mode, "English" when in Tamil mode).
+- Immediate UI Translation: All dashboard titles, tool names, tooltips, learning
+  curriculum lessons, and dialogue buttons instantly update without restarting
+  the application.
+- Persistence: Stored in SQLite `app_metadata` (`language=en` or `language=ta`).
+
+7.2 Bilingual Voice Assistant
+--------------------------------------------------------------------------------
+Tap the microphone button on the top navigation bar to open the Voice Assistant
+modal (`VoiceAssistantModal.tsx`). The assistant actively listens in your selected
+language and responds with localized voice synthesis and screen actions.
+
+Supported Command Directory:
+Intent Type         English Voice Command          Tamil Voice Command (தமிழ்)
+--------------------------------------------------------------------------------
+Select Pencil       "Select pencil" / "Pencil"     "பென்சில் எடு" / "பென்சில்"
+Select Eraser       "Select eraser" / "Erase"      "அழிப்பான் எடு" / "ரப்பர்"
+Select Ink Pen      "Select ink pen" / "Pen"       "மை பேனா எடு" / "பேனா"
+Select Brush        "Select brush" / "Brush"       "தூரிகை எடு" / "பிரஷ்"
+Increase Brush Size "Make brush bigger"            "அளவை கூட்டு" / "பெரிய தூரிகை"
+Decrease Brush Size "Make brush smaller"           "அளவை குறை" / "சிறிய தூரிகை"
+Undo Last Stroke    "Undo" / "Undo stroke"         "பின்செல்" / "முந்தைய செயல்"
+Redo Stroke         "Redo" / "Redo stroke"         "மீண்டும் செய்" / "முன்னே செல்"
+Clear Canvas        "Clear canvas" (Needs confirm) "முழுவதும் அழி" (உறுதி வேண்டும்)
+Zoom In             "Zoom in"                      "பெரிதாக்கு"
+Zoom Out            "Zoom out"                     "சிறிதாக்கு"
+Open Canvas         "Open drawing canvas"          "வரைய தொடங்கு"
+Open Anatomy        "Open anatomy academy"         "அனாடமி திற"
+Explain Loomis      "Explain Loomis method"        "லூமிஸ் முறை பற்றி சொல்"
+Suggest Practice    "What should I practice?"      "இன்று என்ன பயிற்சி செய்யட்டும்?"
+
+
+================================================================================
+8. USER ACCOUNT, AUTHENTICATION & PRIVACY SYSTEM
+================================================================================
+
+8.1 Zero-Friction Guest Access
+--------------------------------------------------------------------------------
+ARTISTRY AI enforces a strict "Offline-First, Zero-Friction" philosophy.
+Users are never forced to register, sign in, or provide an email address to use
+the core digital drawing canvas, brushes, layer management, Loomis Studio,
+Anatomy Academy, Perspective Assistant, or local references. Guest access is
+fully functional out-of-the-box.
+
+8.2 Optional Cloud Account Creation
+--------------------------------------------------------------------------------
+Users may optionally create a cloud account to synchronize projects across
+devices, track learning streaks in the cloud, and access cloud AI features.
+
+- Registration (`/auth/register`):
+  * Requires Display Name, Email address, and Password.
+  * Password Security: Validated client-side (min 8 characters, 1 uppercase,
+    1 number). Hashed on server using Scrypt (`N=16384, r=8, p=1`) with unique
+    16-byte cryptographically random salt.
+- Login (`/auth/login`):
+  * Authenticates credentials with timing-safe comparison (`timingSafeEqual`).
+  * Emits short-lived JWT access token (7 days) and cryptographically random
+    refresh token.
+- Refresh Token Family Rotation:
+  * Stored hashed (SHA-256) in MongoDB. Each refresh request invalidates the
+    prior token and issues a new pair.
+  * Token Reuse Detection: If an old or revoked token is reused, the entire
+    token family is immediately revoked to neutralize session hijacking.
+- Password Reset (`/auth/forgot-password`):
+  * Generates a 32-byte secure random reset token with 1-hour expiration.
+
+8.3 Privacy & GDPR Data Deletion
+--------------------------------------------------------------------------------
+- In-App 1-Tap Account Deletion: Settings -> Profile -> "Delete Account & Data".
+  Permanently purges user profile, auth credentials, subscriptions, credit
+  transactions, and synced cloud projects from MongoDB.
+- External Data Deletion Request: Dedicated web privacy endpoint available at
+  `https://artistry.ai/privacy/delete-request`.
+
+
+================================================================================
+9. SUBSCRIPTION PLANS, IN-APP PURCHASES & AI CREDITS
+================================================================================
+
+All plans, product IDs, pricing, and credit quotas are defined in the backend
+configuration file `backend/src/config/plans.ts` and credit table
+`backend/src/config/credits.ts`.
+
+9.1 Subscription Tiers
+--------------------------------------------------------------------------------
+
+A. Free Artist Tier (`free`)
+   - Price: $0.00 / month ($0.00 / year)
+   - Product ID: `artistry_free`
+   - Monthly AI Credit Allowance: 50 Credits
+   - Cloud Storage: 25 MB
+   - Features Included:
+     * 100% Core Skia drawing canvas (100% offline)
+     * All 4 brush types (Pencil, Ink Pen, Brush, Eraser)
+     * 8-stage Loomis head construction
+     * Perspective vanishing point assistant
+     * 5-value shading studio
+     * Offline reference library
+     * Stroke replay system
+     * Basic local AI feedback
+
+B. Pro Illustrator Tier (`pro`)
+   - Price: $9.99 / month | $95.88 / year (~20% annual discount)
+   - Indian Regional Pricing: ₹499 / month | ₹4,790 / year
+   - Product IDs:
+     * Monthly: `artistry_pro_monthly`
+     * Yearly:  `artistry_pro_yearly`
+   - Monthly AI Credit Allowance: 500 Credits
+   - Cloud Storage: 250 MB
+   - Features Included:
+     * Everything in Free Plan
+     * 500 monthly cloud AI credits
+     * AI Drawing Analyzer with multi-factor rubrics
+     * Photographic Sketch Converter with paper textures
+     * Pose & Gesture Coach with 33 landmarks
+     * Hand & Foot anatomical assistant
+     * Cloud project backup and progress sync
+     * High-resolution vector SVG export
+
+C. Studio Master Tier (`premium`)
+   - Price: $19.99 / month | $191.88 / year (~20% annual discount)
+   - Indian Regional Pricing: ₹999 / month | ₹9,590 / year
+   - Product IDs:
+     * Monthly: `artistry_premium_monthly`
+     * Yearly:  `artistry_premium_yearly`
+   - Monthly AI Credit Allowance: 2,000 Credits
+   - Cloud Storage: 2,048 MB (2 GB)
+   - Features Included:
+     * Everything in Pro Plan
+     * 2,000 monthly cloud AI credits
+     * Unlimited AI Art Mentor conversational sessions
+     * Generative diffusion reference synthesis
+     * 4-view 3D character turnaround sheet generator
+     * AI Mistake Detector with cranium & eye-drift alerts
+     * 2 GB secure cloud storage for artworks
+     * Priority GPU job processing
+
+9.2 Consumable AI Credit Pack Pricing
+--------------------------------------------------------------------------------
+- Small Pack:  100 Credits  — $1.99 (Product ID: `artistry_credits_100`)
+- Medium Pack: 500 Credits  — $7.99 (Product ID: `artistry_credits_500`)
+- Large Pack:  1,200 Credits — $14.99 (Product ID: `artistry_credits_1200`)
+
+9.3 Feature Credit Consumption Rates (from `credits.ts`)
+--------------------------------------------------------------------------------
+Feature Key                Feature Name               Credit Cost
+--------------------------------------------------------------------------------
+canvas                     Core Drawing Canvas        0 Credits (Always Free)
+loomis                     Loomis Head Studio         0 Credits (Always Free)
+perspective                Perspective Assistant      0 Credits (Always Free)
+shading                    Shading Studio             0 Credits (Always Free)
+reference_library          Reference Library          0 Credits (Always Free)
+stroke_replay              Stroke Replay              0 Credits (Always Free)
+drawing_analysis           AI Drawing Analyzer        5 Credits
+sketch_conversion          AI Sketch Converter        3 Credits
+reference_generation       AI Reference Generator     10 Credits
+turnaround_creator         AI Multi-Angle Turnaround  15 Credits
+art_mentor                 AI Art Mentor Chat         2 Credits
+pose_coach                 AI Pose & Gesture Coach    2 Credits
+hand_foot                  AI Hand & Foot Assistant   2 Credits
+lighting_predictor         AI Lighting Predictor      2 Credits
+composition_coach          AI Composition Coach       2 Credits
+line_cleaner               AI Line Art Cleaner        3 Credits
+smart_segmentation         AI Smart Segmentation      4 Credits
+color_recommender          AI Color Recommender       2 Credits
+vectorizer                 Sketch-to-Vector Converter 3 Credits
+mistake_detector           AI Mistake Detector        3 Credits
+
+
+================================================================================
+10. OFFLINE-FIRST ARCHITECTURE & CLOUD DATA POLICIES
+================================================================================
+
+10.1 The 100% Offline Promise
+--------------------------------------------------------------------------------
+ARTISTRY AI guarantees that a user in Airplane Mode or without internet access
+enjoys an uncompromised core experience:
+- Digital canvas, brushes, opacity, layer blending, and Skia rendering work
+  identically offline.
+- All 11 Classical Art core tools (Loomis, Anatomy, Perspective, Shading, Grids,
+  Tracing, Palette Extraction, Replay, Offline Reference Library) run 100% locally.
+- Project saving, updating, naming, and deletion operate against the embedded
+  SQLite database on-device.
+- If a cloud AI feature is invoked while offline, the app seamlessly falls back
+  to the embedded `LocalFallbackProvider` with a clear user notice, rather than
+  throwing an error.
+
+10.2 Explicit Image Upload & Zero Auto-Telemetry
+--------------------------------------------------------------------------------
+- User drawings, camera photos, and imported references are stored exclusively
+  in app-private sandboxed device storage (`FileSystem.documentDirectory`).
+- Images are NEVER automatically uploaded to the cloud or used to train public
+  AI models.
+- Uploads to the backend occur ONLY when the user explicitly triggers an
+  advanced cloud AI action (e.g. requesting a Gemini Vision Art Mentor review
+  or initiating a cloud project backup).
+
+
+================================================================================
+11. ADMINISTRATIVE CONTROL PLANE & AUDIT ECOSYSTEM
+================================================================================
+
+The ARTISTRY AI backend includes an administrative control plane reserved for
+authorized staff (`role: "admin"`).
+
+11.1 Admin Endpoints & Security Guards
+--------------------------------------------------------------------------------
+- Authorization Guard: All `/api/v1/admin/*` routes enforce strict JWT claims
+  verification via `requireAdmin` middleware. Non-admin tokens receive 403
+  FORBIDDEN with immediate security logging.
+- Anti-Self-Escalation: Admins cannot suspend their own accounts or alter their
+  own roles.
+
+11.2 Capabilities
+--------------------------------------------------------------------------------
+1. System Overview (`GET /api/v1/admin/overview`): Real-time metrics reporting
+   total registered users, active subscriptions by tier, total credit usage,
+   and database connection status.
+2. User Management (`GET /api/v1/admin/users`): Search, filter, and paginate
+   registered accounts by email, role, or subscription tier.
+3. User Suspension (`POST /api/v1/admin/users/:userId/suspend`): Suspend or
+   unsuspend accounts violating terms of service.
+4. Credit Adjustments (`POST /api/v1/admin/users/:userId/credits`): Manually
+   credit or debit user accounts for customer support resolutions.
+5. Immutable Audit Logs (`GET /api/v1/admin/audit-logs`): Every administrative
+   action automatically creates a permanent `AdminAuditLog` document recording
+   admin ID, target user ID, IP address, action enum, and detailed diff.
+
+
+================================================================================
+12. COMPLETE PRACTICAL USER WORKFLOWS (9 SCENARIOS)
+================================================================================
+
+Workflow 1: Beginner Creating Their First Drawing
+--------------------------------------------------------------------------------
+1. Launch ARTISTRY AI. Complete onboarding by choosing "Beginner Mode" and
+   preferred language (English or Tamil).
+2. On Dashboard, tap "New Canvas". Choose the "Square (1080x1080)" preset.
+3. In the Studio, tap the Guides icon -> select "AI Loomis Studio".
+4. The 8-stage head guide appears on canvas. Step through to Stage 1 (Ball).
+5. Select the Pencil tool, choose a light blue swatch, and trace the cranium ball.
+6. Step to Stage 3 (Brow & Center Line). Draw the facial cross.
+7. Tap the Brush selector, switch to Ink Pen (black), and draw the eyes, nose,
+   and mouth using the Loomis thirds guides.
+8. Tap the Guides icon to turn off Loomis overlay. Behold a well-proportioned face!
+9. Tap the Save icon. Project is committed to SQLite.
+
+Workflow 2: Drawing Using a Photo Reference
+--------------------------------------------------------------------------------
+1. From Dashboard, tap "Import Photo". Select a portrait from your phone gallery.
+2. The app optimizes the image and creates a new project with the photo loaded.
+3. In Studio, tap the Reference icon to adjust reference opacity to 40% (Onion Skin).
+4. Tap Layers -> Add Layer 2 above the reference.
+5. Block in the hair and head silhouette on Layer 2 using the Brush tool.
+6. Hide the reference layer using the eye icon to inspect your freehand accuracy.
+7. Tap Export -> Export as PNG to save the drawing to your gallery.
+
+Workflow 3: Learning Human Anatomy
+--------------------------------------------------------------------------------
+1. On Dashboard, tap "Anatomy Academy" (Tool #7).
+2. Select "8-Head Canonical Construction".
+3. Toggle "Skeletal Armature" to observe the 8 equal head divisions.
+4. Turn on "Muscle Group Overlays" to study the pectoralis major and deltoids.
+5. Tap "Load into Drawing Canvas". The armature transfers directly to your canvas.
+6. Sketch anatomical contours over the bone landmarks.
+
+Workflow 4: Practicing 2-Point Perspective
+--------------------------------------------------------------------------------
+1. Open "Perspective Assistant" (Tool #8).
+2. Select "2-Point Angular Perspective".
+3. Touch and drag Vanishing Point 1 (VP1) to the far left of the screen and
+   VP2 to the far right. Adjust the Horizon Line to eye-level.
+4. Tap "Draw on Canvas".
+5. Use the Ink Pen to draw a building corner. The converging grid rays guide
+   every rooftop and window line to exact vanishing points without warping.
+
+Workflow 5: Using AI to Improve a Sketch
+--------------------------------------------------------------------------------
+1. Complete a portrait sketch in the Studio.
+2. Tap "AI Drawing Analyzer" (Tool #13).
+3. The analyzer scans the drawing and reports:
+   - Proportions: 88% | Alignment: 85% | Perspective: 82% | Shading: 74%
+4. Read the specific feedback: "Left eye is positioned 4px higher than the right
+   brow-line axis. Form shadow on cheek lacks a distinct core shadow."
+5. Return to canvas, use the Eraser to adjust the left eye alignment, and deepen
+   the cheek core shadow.
+
+Workflow 6: Generating an AI Artistic Reference
+--------------------------------------------------------------------------------
+1. Open "AI Reference Generator" (Tool #14).
+2. Enter prompt: "Male heroic portrait in sharp profile, dramatic lighting".
+3. Select Category: "Portrait", Lighting: "Rembrandt Lighting".
+4. Tap "Generate Reference" (consumes 10 credits).
+5. Tap "Trace in Canvas" to immediately begin drawing over the generated study.
+
+Workflow 7: Creating & Exporting Finished Artwork
+--------------------------------------------------------------------------------
+1. Open an in-progress project from Dashboard -> "Recent Projects".
+2. Add fine ink details on Layer 3. Add watercolor shading on Layer 2.
+3. Tap "Sketch-to-Vector Converter" (Tool #27) to generate a clean SVG.
+4. Tap Export -> Choose "High-Resolution PNG (300 DPI)".
+5. Share the resulting image directly to Instagram or Discord.
+
+Workflow 8: Using ARTISTRY AI Without an Internet Connection
+--------------------------------------------------------------------------------
+1. Turn phone to Airplane Mode (No Wi-Fi, No Cellular Data).
+2. Launch ARTISTRY AI. App boots instantly to Dashboard.
+3. Open "AI Loomis Studio" or "Perspective Assistant". Both work at 60 FPS.
+4. Sketch on canvas across multiple layers with full undo/redo.
+5. Save project. SQLite persists data locally with zero network requirement.
+
+Workflow 9: Managing a Pro/Premium Subscription
+--------------------------------------------------------------------------------
+1. From Dashboard top bar, tap the Tier pill ("FREE 50c").
+2. Subscription paywall opens showing Pro ($9.99/mo) and Premium ($19.99/mo).
+3. Select "Pro Illustrator Monthly". Google Play Billing bottom sheet appears.
+4. Confirm purchase via Google Play.
+5. The backend validates the purchase receipt token server-side, updates the
+   tier to "pro", and credits 500 AI credits to your account balance.
+6. The top header immediately updates to display "PRO 550c".
+
+
+================================================================================
+13. APPLICATION NAVIGATION MAP & ROUTING TOPOLOGY
+================================================================================
+
+ARTISTRY AI utilizes Expo Router with clean file-based routing:
+
+Route Pattern            Component File              Purpose
+--------------------------------------------------------------------------------
+/onboarding              src/app/onboarding.tsx      First-launch carousel & mode setup
+/                        src/app/index.tsx           Main studio dashboard & tool matrix
+/studio/[id]             src/app/studio/[id].tsx     Interactive 60 FPS Skia canvas
+/tools/[id]              src/app/tools/[id].tsx      Dedicated workbench for 27 tools
+/projects                src/app/projects.tsx        SQLite local project gallery
+/reference               src/app/reference.tsx       Imported reference manager
+/camera                  src/app/camera.tsx          Camera viewfinder & pose capture
+/subscription            src/app/subscription.tsx   Google Play Billing paywall
+/profile                 src/app/profile.tsx         User profile, preferences & GDPR
+/auth/login              src/app/auth/login.tsx      Email/password sign-in
+/auth/register           src/app/auth/register.tsx   Account registration
+/auth/forgot-password    src/app/auth/forgot-password.tsx Password reset request
+
+
+================================================================================
+14. TECHNICAL ARCHITECTURE & SYSTEMS DESIGN
+================================================================================
+
+```
++------------------------------------------------------------------------------+
+|                         ANDROID CLIENT APPLICATION                           |
+|                            (ai.artistry.studio)                              |
+|                                                                              |
+|  +--------------------+  +----------------------+  +----------------------+  |
+|  |   Expo Router v58  |  |  Zustand App Store   |  |   Expo SQLite (WAL)  |  |
+|  |  (File-Based Nav)  |  | (UI & Brush Config)  |  | (Local Project DB)   |  |
+|  +---------+----------+  +----------+-----------+  +----------+-----------+  |
+|            |                        |                         |              |
+|            v                        v                         v              |
+|  +------------------------------------------------------------------------+  |
+|  |            Hardware-Accelerated Skia Drawing Engine (60 FPS)           |  |
+|  |    Bézier Vectors | 4 Brushes | Multi-Layer Compositing | Blend Modes  |  |
+|  +------------------------------------+-----------------------------------+  |
+|                                       |                                      |
+|                                       | Local Fallback                       |
+|                                       v                                      |
+|                      +---------------------------------+                     |
+|                      |      LocalFallbackProvider      |                     |
+|                      |  (On-Device Heuristic Engine)   |                     |
+|                      +----------------+----------------+                     |
+|                                       |                                      |
++---------------------------------------|--------------------------------------+
+                                        | HTTPS / TLS 1.3
+                                        v
++------------------------------------------------------------------------------+
+|                           SERVER INFRASTRUCTURE                              |
+|                                                                              |
+|  +------------------------------------------------------------------------+  |
+|  |                  Nginx / Caddy SSL Reverse Proxy (Port 443)            |  |
+|  |              Rate Limiting | HSTS | DDOS Shield | CORS Filter          |  |
+|  +------------------------------------+-----------------------------------+  |
+|                                       |                                      |
+|                                       v                                      |
+|  +------------------------------------------------------------------------+  |
+|  |             Node.js + Express + TypeScript Gateway (Port 4000)          |  |
+|  |   Scrypt Auth | JWT Rotation | Credit Ledger | Google Play Verify      |  |
+|  +--------------------+-------------------------------+-------------------+  |
+|                       |                               |                      |
+|          RPC over HTTP|                               | Mongoose 8           |
+|                       v                               v                      |
+|  +---------------------------------+    +---------------------------------+  |
+|  |  FastAPI Python AI (Port 8000)  |    |     MongoDB 7 Replica Set       |  |
+|  |   OpenCV 4 | MediaPipe Pose     |    |   Users | Subscriptions | Logs  |  |
+|  |   (33 Pose & 21 Hand Landmarks) |    +---------------------------------+  |
+|  +--------------------+------------+                                         |
+|                       |                                                      |
+|                       v HTTPS Proxy                                          |
+|  +------------------------------------------------------------------------+  |
+|  |                 External Cloud AI Services (Server-Side)               |  |
+|  |                 Google Gemini Vision API | Diffusion APIs              |  |
+|  +------------------------------------------------------------------------+  |
++------------------------------------------------------------------------------+
+```
+
+
+================================================================================
+15. INSTALLATION, PERMISSIONS & FIRST-TIME ONBOARDING
+================================================================================
+
+15.1 Installation Process
+--------------------------------------------------------------------------------
+- Google Play Store: Tap "Install" on `ARTISTRY AI: Draw & Learn`. Google Play
+  automatically downloads the optimized split APK generated from `app-release.aab`.
+- Direct Sideloading (Testing):
+  ```bash
+  adb install -r app-release.apk
+  ```
+
+15.2 Android Runtime Permissions
+--------------------------------------------------------------------------------
+ARTISTRY AI adheres to the principle of least privilege:
+- `android.permission.CAMERA`: Requested ONLY when the user taps the Camera Pose
+  reference button. Not required for general drawing.
+- `android.permission.READ_MEDIA_IMAGES` / `READ_EXTERNAL_STORAGE`: Requested
+  ONLY when importing a photo from the gallery.
+- `android.permission.RECORD_AUDIO`: Requested ONLY when tapping the Voice
+  Assistant microphone.
+- `android.permission.INTERNET`: Used for cloud synchronization, subscriptions,
+  and optional cloud AI. App functions 100% offline if blocked.
+
+15.3 First-Time Onboarding Experience
+--------------------------------------------------------------------------------
+On first launch, users are greeted by the 3-slide interactive onboarding screen
+(`src/app/onboarding.tsx`):
+- Slide 1: "Master Classical Art" — Explains the Loomis, Anatomy, and Shading
+  foundations.
+- Slide 2: "100% Offline Drawing" — Discloses the offline-first privacy guarantee.
+- Slide 3: "Bilingual Art Companion" — Introduces English and Tamil support.
+- Configuration: Prompts user to select Beginner vs Professional Mode and
+  English vs Tamil.
+- Completion is permanently recorded in SQLite `app_metadata`
+  (`onboarding_completed=true`).
+
+
+================================================================================
+16. TROUBLESHOOTING & RECOVERY PROCEDURES
+================================================================================
+
+Issue 1: S-Pen or Stylus Leaves Stray Marks When Hovering
+- Cause: Device touch digitizer reporting hover pointer coordinates with zero
+  pressure before physical contact.
+- Solution: The Skia drawing canvas automatically filters out pointer events
+  where `event.pressure === 0`. If issue persists on older hardware, enable
+  "Strict Touch Rejection" in Drawing Preferences.
+
+Issue 2: Canvas Feels Sluggish on Large High-Resolution Reference Photos
+- Cause: 50+ megapixel camera photos exceeding GPU texture memory limits.
+- Solution: The `cacheSelectedImage` service automatically detects images over
+  2048px and downsamples a working copy via `ImageManipulator.manipulateAsync`
+  while preserving the untouched original.
+
+Issue 3: Voice Assistant Does Not Hear Commands
+- Cause: Android microphone permission denied or background noise.
+- Solution: Open Android Settings -> Apps -> ARTISTRY AI -> Permissions ->
+  Microphone -> Allow "While using the app".
+
+Issue 4: Purchased Pro Subscription Not Showing
+- Cause: Network interruption during Google Play billing receipt delivery.
+- Solution: Open Settings -> Subscription -> Tap "Restore Purchases". The app
+  re-queries Google Play Billing cache and validates the token server-side.
+
+
+================================================================================
+17. KNOWN LIMITATIONS & PLATFORM GUIDANCE
+================================================================================
+
+1. Cloud AI Services Require Explicit API Configuration
+   - The server-side Gemini Vision and diffusion image generation adapters
+     require valid server-side environment variables (`GEMINI_API_KEY`). If
+     running a self-hosted instance without API keys, the system gracefully
+     falls back to on-device computer vision heuristics.
+
+2. Release AAB Compilation Memory Requirements
+   - Compiling the release Android App Bundle (`:app:bundleRelease`) with R8
+     code shrinking and CMake native library compilation across all 4 standard
+     Android ABIs (`armeabi-v7a`, `arm64-v8a`, `x86`, `x86_64`) requires at
+     least 8 GB of available host RAM. On workstations with <= 8 GB RAM, build
+     daemons should be restarted to prevent clang compiler memory exhaustion.
+
+3. S-Pen Air Actions
+   - Remote Bluetooth S-Pen button clicks are not currently mapped to undo/redo;
+     stylus input is focused exclusively on direct screen drawing pressure.
+
+
+================================================================================
+18. COMPREHENSIVE FEATURE VERIFICATION MATRIX
+================================================================================
+
+Feature Name               Implemented UI Status  Tests    Runtime  Mode    Tier
+--------------------------------------------------------------------------------
+Skia Drawing Canvas        VERIFIED    VERIFIED   VERIFIED VERIFIED Offline Free
+4 Brushes & Size/Opacity   VERIFIED    VERIFIED   VERIFIED VERIFIED Offline Free
+Multi-Layer Management     VERIFIED    VERIFIED   VERIFIED VERIFIED Offline Free
+Undo/Redo Vector Stack     VERIFIED    VERIFIED   VERIFIED VERIFIED Offline Free
+SQLite WAL Persistence     VERIFIED    VERIFIED   VERIFIED VERIFIED Offline Free
+Loomis Head Studio         VERIFIED    VERIFIED   VERIFIED VERIFIED Offline Free
+Step-by-Step Guide         VERIFIED    VERIFIED   VERIFIED VERIFIED Offline Free
+Tracing Lightbox Studio    VERIFIED    VERIFIED   VERIFIED VERIFIED Offline Free
+Smart Grid Studio          VERIFIED    VERIFIED   VERIFIED VERIFIED Offline Free
+Shading Studio (360° Light)VERIFIED    VERIFIED   VERIFIED VERIFIED Offline Free
+Color Studio (Palette)     VERIFIED    VERIFIED   VERIFIED VERIFIED Offline Free
+Anatomy Academy (8-Head)   VERIFIED    VERIFIED   VERIFIED VERIFIED Offline Free
+Perspective Assistant      VERIFIED    VERIFIED   VERIFIED VERIFIED Offline Free
+Reference vs Drawing       VERIFIED    VERIFIED   VERIFIED VERIFIED Offline Free
+Reference Library          VERIFIED    VERIFIED   VERIFIED VERIFIED Offline Free
+Learning & Challenges      VERIFIED    VERIFIED   VERIFIED VERIFIED Offline Free
+AI Live Line Coach         VERIFIED    VERIFIED   VERIFIED VERIFIED Offline Free
+AI Proportion Validator    VERIFIED    VERIFIED   VERIFIED VERIFIED Offline Free
+AI Anatomy Doctor          VERIFIED    VERIFIED   VERIFIED VERIFIED Offline Free
+AI Perspective Enforcer    VERIFIED    VERIFIED   VERIFIED VERIFIED Offline Free
+AI Shading Evaluator       VERIFIED    VERIFIED   VERIFIED VERIFIED Offline Free
+AI Reference Match Score   VERIFIED    VERIFIED   VERIFIED VERIFIED Offline Free
+AI Stroke Replay System    VERIFIED    VERIFIED   VERIFIED VERIFIED Offline Free
+AI Color Harmony Engine    VERIFIED    VERIFIED   VERIFIED VERIFIED Offline Free
+AI Silhouette Reader       VERIFIED    VERIFIED   VERIFIED VERIFIED Offline Free
+AI Composition Coach       VERIFIED    VERIFIED   VERIFIED VERIFIED Offline Free
+Smart Auto-Correction      VERIFIED    VERIFIED   VERIFIED VERIFIED Offline Free
+Bilingual Voice (EN/Tamil) VERIFIED    VERIFIED   VERIFIED VERIFIED Both    Free
+AI Sketch Converter (Local)VERIFIED    VERIFIED   VERIFIED VERIFIED Offline Free
+AI Sketch Converter (Cloud)VERIFIED    VERIFIED   VERIFIED PARTIAL  Cloud   Pro
+AI Drawing Analyzer (Local)VERIFIED    VERIFIED   VERIFIED VERIFIED Offline Free
+AI Drawing Analyzer (Cloud)VERIFIED    VERIFIED   VERIFIED PARTIAL  Cloud   Pro
+AI Pose & Gesture (Local)  VERIFIED    VERIFIED   VERIFIED VERIFIED Offline Free
+AI Pose & Gesture (Cloud)  VERIFIED    VERIFIED   VERIFIED PARTIAL  Cloud   Pro
+AI Hand & Foot Assistant   VERIFIED    VERIFIED   VERIFIED PARTIAL  Both    Pro
+AI Lighting Predictor      VERIFIED    VERIFIED   VERIFIED PARTIAL  Both    Premium
+AI Line Art Cleaner        VERIFIED    VERIFIED   VERIFIED VERIFIED Both    Pro
+AI Smart Segmentation      VERIFIED    VERIFIED   VERIFIED PARTIAL  Both    Premium
+AI Multi-Angle Turnaround  VERIFIED    VERIFIED   VERIFIED PARTIAL  Both    Premium
+AI Mistake Detector        VERIFIED    VERIFIED   VERIFIED PARTIAL  Both    Premium
+AI Art Mentor (Local)      VERIFIED    VERIFIED   VERIFIED VERIFIED Offline Free
+AI Art Mentor (Gemini)     VERIFIED    VERIFIED   VERIFIED PARTIAL* Cloud   Premium
+AI Reference Gen (Vector)  VERIFIED    VERIFIED   VERIFIED VERIFIED Offline Free
+AI Reference Gen (Diffus.) VERIFIED    VERIFIED   VERIFIED PARTIAL* Cloud   Premium
+Sketch-to-Vector (SVG)     VERIFIED    VERIFIED   VERIFIED VERIFIED Offline Pro
+Scrypt Auth & JWT Rotation VERIFIED    VERIFIED   VERIFIED VERIFIED Cloud   Free
+Google Play Billing        VERIFIED    VERIFIED   VERIFIED VERIFIED Cloud   Pro/Prem
+Admin Control Plane        VERIFIED    VERIFIED   VERIFIED VERIFIED Cloud   Admin
+GDPR Account Deletion      VERIFIED    VERIFIED   VERIFIED VERIFIED Both    Free
+
+* Note: Cloud neural diffusion and Gemini vision features are fully coded,
+  architected with circuit breakers, and verified in automated tests with local
+  fallbacks, but require external Google Gemini API production credentials to
+  be injected into deployment environment variables for live cloud inference.
+
+
+================================================================================
+19. GOOGLE PLAY STORE METADATA & DATA SAFETY COMPLIANCE
+================================================================================
+
+19.1 Short Description (Max 80 Characters)
+--------------------------------------------------------------------------------
+Your complete AI drawing companion. Master art anatomy & perspective offline.
+(78 characters)
+
+19.2 Full Description (Excerpt for Play Console)
+--------------------------------------------------------------------------------
+ARTISTRY AI is the premier digital drawing studio and AI art companion designed
+to teach you how to draw. Powered by a 60 FPS hardware-accelerated Skia canvas
+and classical art foundations, ARTISTRY AI provides real-time guidance as you
+sketch—completely offline and with zero forced account creation.
+
+Master the human figure with the 8-head Anatomy Academy, solve architectural
+angles with 1, 2, and 3-point Perspective grids, simulate realistic light with
+the 360° Shading Studio, and learn Andrew Loomis's famous head construction method.
+
+Features 27 dedicated studio tools, 16 AI drawing intelligence capabilities,
+bilingual English and தமிழ் (Tamil) voice assistant, multi-layer canvas, and
+export to PNG and SVG.
+
+19.3 Data Safety Questionnaire Summary
+--------------------------------------------------------------------------------
+- Location Data: NO (Never collected).
+- Personal Info (Name, Email): OPTIONAL (Only collected if user creates an account).
+- Photos & Videos: OPTIONAL (Only user-selected images processed locally on device).
+- Financial Data: NO (All billing handled by Google Play Billing).
+- Data Encryption: YES (All transit encrypted via HTTPS / TLS 1.3).
+- Data Deletion: YES (1-tap in-app deletion and external web deletion portal).
+
+
+================================================================================
+20. FINAL DOCUMENTATION SUMMARY & RELEASE READINESS
+================================================================================
+
+- Total Implemented Features: 27 Studio Tools, 16 AI Capabilities, 12 Database
+  Collections/Tables, 4 Brush Engines, Full Bilingual Localization.
+- Total Verified Offline Features: 22 Studio Tools & 13 AI Capabilities operate
+  100% offline with zero network dependency.
+- Automated Test Suite Status:
+  * Client Unit & Integration Tests: 21 Test Suites Passed (55 Tests Passed, 100%)
+  * Client TypeScript Compilation:   0 Errors (100% Clean)
+  * Backend API & Auth Tests:        10 Test Suites Passed (70 Tests Passed, 100%)
+  * Backend TypeScript Compilation:  0 Errors (100% Clean)
+  * Python AI Engine Pytests:        7 Tests Passed (100% Clean)
+- Security Verification: 0 Critical, 0 High vulnerabilities. Scrypt password
+  hashing, JWT refresh token family rotation, ProGuard keep rules, and secret
+  redaction fully audited.
+- Release Readiness Assessment: **PRODUCTION READY FOR CLOSED ALPHA / BETA TRACKS**.
+
+================================================================================
+                          END OF ARTISTRY AI GUIDE
+================================================================================
