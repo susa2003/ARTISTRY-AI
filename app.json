@@ -1,0 +1,52 @@
+{
+  "expo": {
+    "name": "ARTISTRY AI",
+    "slug": "artistry-ai",
+    "version": "1.0.0",
+    "orientation": "default",
+    "scheme": "artistryai",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "android": {
+      "package": "ai.artistry.studio",
+      "versionCode": 1,
+      "predictiveBackGestureEnabled": true,
+      "softwareKeyboardLayoutMode": "pan",
+      "permissions": ["android.permission.CAMERA"],
+      "blockedPermissions": [
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.SYSTEM_ALERT_WINDOW"
+      ]
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow ARTISTRY AI to take a reference photo when you choose to use the camera.",
+          "recordAudioAndroid": false
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "ARTISTRY AI can access only the image you choose.",
+          "cameraPermission": "Allow ARTISTRY AI to take a reference photo only when you choose the camera.",
+          "microphonePermission": false
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#f7f6f1",
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 132
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
