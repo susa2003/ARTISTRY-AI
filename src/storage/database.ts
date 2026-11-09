@@ -570,3 +570,24 @@ export async function setExperienceMode(mode: ExperienceMode): Promise<void> {
     mode
   );
 }
+
+// =========================================================================
+// PHASE 5: BILINGUAL LOCALIZATION (TAMIL & ENGLISH)
+// =========================================================================
+
+export async function getAppLanguage(): Promise<"en" | "ta"> {
+  const db = await database();
+  const row = await db.getFirstAsync<{ value: string }>(
+    "SELECT value FROM app_metadata WHERE key = 'app_language'"
+  );
+  if (row?.value === "ta") return "ta";
+  return "en";
+}
+
+export async function setAppLanguage(lang: "en" | "ta"): Promise<void> {
+  const db = await database();
+  await db.runAsync(
+    "INSERT INTO app_metadata (key, value) VALUES ('app_language', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+    lang
+  );
+}

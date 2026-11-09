@@ -4,6 +4,8 @@ import { router } from "expo-router";
 import { AppHeader, Button, Eyebrow, InfoCard, Screen, SectionHeading } from "../components/AppUI";
 import { FEATURES } from "../domain/features";
 import { chooseImageFromDocuments, choosePhotoFromSystemPicker } from "../features/images/pickImage";
+import { VoiceAssistantModal } from "../features/voice/VoiceAssistantModal";
+import { useTranslation } from "../i18n";
 import { useAppStore } from "../state/appStore";
 import { colors } from "../theme";
 import type { ToolId } from "../domain/types";
@@ -12,11 +14,13 @@ export default function HomeScreen() {
   const { width } = useWindowDimensions();
   const isMobile = width < 600;
   const columns = width > 760 ? 4 : 2;
+  const { t, language, setLanguage } = useTranslation();
   const reference = useAppStore((state) => state.reference);
   const createProject = useAppStore((state) => state.createProject);
   const experienceMode = useAppStore((state) => state.experienceMode);
   const setExperienceMode = useAppStore((state) => state.setExperienceMode);
   const [busy, setBusy] = useState(false);
+  const [voiceVisible, setVoiceVisible] = useState(false);
 
   const startDrawing = async (withReference = false) => {
     try {
@@ -42,33 +46,47 @@ export default function HomeScreen() {
   return (
     <Screen>
       <AppHeader
-        title="ARTISTRY AI"
+        title={t.app.title}
         right={
           <View style={{ flexDirection: "row", gap: 6, alignItems: "center" }}>
+            <Pressable onPress={() => setVoiceVisible(true)} style={styles.voiceButton}>
+              <Text style={styles.voiceButtonText}>🎙 {language === "ta" ? "குரல்" : "Voice"}</Text>
+            </Pressable>
+            <Pressable
+              onPress={() => setLanguage(language === "en" ? "ta" : "en")}
+              style={styles.langToggle}
+            >
+              <Text style={styles.langToggleText}>
+                {language === "en" ? "தமிழ்" : "EN"}
+              </Text>
+            </Pressable>
             <Pressable
               onPress={() => void setExperienceMode(experienceMode === "beginner" ? "professional" : "beginner")}
               style={styles.tierToggle}
             >
               <Text style={styles.tierToggleText}>
-                {experienceMode === "beginner" ? "🌱 Beginner" : "⚡ Pro"}
+                {experienceMode === "beginner" ? (language === "ta" ? "🌱 தொடக்கம்" : "🌱 Beginner") : (language === "ta" ? "⚡ தொழில்" : "⚡ Pro")}
               </Text>
             </Pressable>
             <Pressable onPress={() => router.push("/projects")} style={styles.projectLink}>
-              <Text style={styles.projectLinkText}>Projects  ›</Text>
+              <Text style={styles.projectLinkText}>{language === "ta" ? "ஓவியங்கள் ›" : "Projects ›"}</Text>
             </Pressable>
           </View>
         }
       />
       <View style={[styles.hero, isMobile && { flexDirection: "column", padding: 20 }]}>
         <View style={[styles.heroCopy, isMobile && { maxWidth: "100%" }]}>
-          <Eyebrow>YOUR QUIET PLACE TO PRACTICE</Eyebrow>
-          <Text style={[styles.headline, isMobile && { fontSize: 32, lineHeight: 36 }]}>Make room{`\n`}for <Text style={styles.headlineAccent}>a drawing.</Text></Text>
-          <Text style={styles.intro}>Start with a blank canvas, or bring a photo when a reference helps. Your projects and drawings stay on this device.</Text>
+          <Eyebrow>{language === "ta" ? "உங்கள் அமைதியான பயிற்சி இடம்" : "YOUR QUIET PLACE TO PRACTICE"}</Eyebrow>
+          <Text style={[styles.headline, isMobile && { fontSize: 32, lineHeight: 36 }]}>
+            {language === "ta" ? "ஒரு ஓவியத்திற்கு " : "Make room\nfor "}
+            <Text style={styles.headlineAccent}>{language === "ta" ? "இடமளியுங்கள்." : "a drawing."}</Text>
+          </Text>
+          <Text style={styles.intro}>{t.app.drawDirectly}</Text>
           <View style={styles.heroButtons}>
-            <Button title="Open a blank canvas" icon="✎" onPress={() => void startDrawing(false)} style={styles.heroButton} />
-            {reference ? <Button title="Draw from this reference" icon="◉" tone="soft" onPress={() => void startDrawing(true)} style={styles.heroButton} /> : null}
+            <Button title={t.app.startBlank} icon="✎" onPress={() => void startDrawing(false)} style={styles.heroButton} />
+            {reference ? <Button title={language === "ta" ? "மாதிரியிலிருந்து வரை" : "Draw from this reference"} icon="◉" tone="soft" onPress={() => void startDrawing(true)} style={styles.heroButton} /> : null}
           </View>
-          <View style={styles.offlineNote}><View style={styles.dot} /><Text style={styles.offlineText}>Drawing and saving work offline. No photo is needed to begin.</Text></View>
+          <View style={styles.offlineNote}><View style={styles.dot} /><Text style={styles.offlineText}>{t.status.offline}</Text></View>
         </View>
         {!isMobile ? (
           <View style={styles.heroArt}>
@@ -84,37 +102,52 @@ export default function HomeScreen() {
         ) : null}
       </View>
 
-      <SectionHeading title="Bring in a reference" detail="Optional · original stays untouched" />
+      <SectionHeading title={language === "ta" ? "மாதிரிப் படத்தை இணைக்க" : "Bring in a reference"} detail={language === "ta" ? "விருப்பத்தேர்வு · அசல் படம் மாறாது" : "Optional · original stays untouched"} />
       <InfoCard style={styles.importCard}>
         <View style={styles.importCopy}>
-          <Text style={styles.importTitle}>{reference ? "Your local reference is ready" : "Choose a local image"}</Text>
-          <Text style={styles.importDetail}>JPG, JPEG, PNG and WEBP. The image is copied to this device and is never sent anywhere automatically.</Text>
+          <Text style={styles.importTitle}>{reference ? (language === "ta" ? "உள்ளூர் மாதிரி தயார்" : "Your local reference is ready") : (language === "ta" ? "உள்ளூர் படத்தை தேர்வு செய்" : "Choose a local image")}</Text>
+          <Text style={styles.importDetail}>{language === "ta" ? "JPG, JPEG, PNG மற்றும் WEBP. படம் இந்த சாதனத்தில் சேமிக்கப்படுகிறது, எங்கும் அனுப்பப்படாது." : "JPG, JPEG, PNG and WEBP. The image is copied to this device and is never sent anywhere automatically."}</Text>
           <View style={styles.importButtons}>
-            <Button title="Photo picker" icon="▧" onPress={() => void choosePhoto("gallery")} disabled={busy} style={styles.importButton} />
-            <Button title="Camera" icon="◉" tone="line" onPress={() => router.push("/camera")} style={styles.importButton} />
-            <Button title="Browse files" icon="⌕" tone="line" onPress={() => void choosePhoto("documents")} disabled={busy} style={styles.importButton} />
+            <Button title={t.app.choosePhoto} icon="▧" onPress={() => void choosePhoto("gallery")} disabled={busy} style={styles.importButton} />
+            <Button title={t.app.camera} icon="◉" tone="line" onPress={() => router.push("/camera")} style={styles.importButton} />
+            <Button title={language === "ta" ? "கோப்புகள்" : "Browse files"} icon="⌕" tone="line" onPress={() => void choosePhoto("documents")} disabled={busy} style={styles.importButton} />
           </View>
         </View>
         {reference ? <Pressable onPress={() => router.push("/reference")} style={styles.thumbWrap} accessibilityLabel="Open reference preview"><Image source={{ uri: reference.uri }} style={styles.thumb} /><Text style={styles.thumbLabel}>Preview</Text></Pressable> : <View style={styles.importGlyph}><Text style={styles.importGlyphText}>＋</Text></View>}
       </InfoCard>
 
-      <SectionHeading title="AI Drawing Intelligence Ecosystem" detail="27 studios & assistants · Offline-ready" />
+      <SectionHeading title={language === "ta" ? "AI வரைதல் நுண்ணறிவு சுற்றுச்சூழல்" : "AI Drawing Intelligence Ecosystem"} detail={language === "ta" ? "27 ஸ்டுடியோக்கள் & கருவிகள் · ஆஃப்லைன் தயார்" : "27 studios & assistants · Offline-ready"} />
       <View style={[styles.toolGrid, { gap: 11 }]}>
-        {FEATURES.map((feature, index) => (
-          <Pressable key={feature.id} onPress={() => openTool(feature.id)} style={({ pressed }) => [styles.toolCard, { width: `${100 / columns - (columns === 2 ? 1.7 : 1.1)}%` }, pressed && styles.pressed]}>
-            <View style={[styles.toolNumber, index % 3 === 1 && styles.toolNumberAlt]}><Text style={styles.toolNumberText}>{String(index + 1).padStart(2, "0")}</Text></View>
-            <Text style={styles.toolTitle}>{feature.title}</Text>
-            <Text style={styles.toolDetail}>{feature.detail}</Text>
-            <Text style={styles.toolArrow}>↗</Text>
-          </Pressable>
-        ))}
+        {FEATURES.map((feature, index) => {
+          const localized = (t.tools as any)?.[feature.id];
+          const toolTitle = localized?.name || feature.title;
+          const toolDesc = localized?.desc || feature.detail;
+          return (
+            <Pressable key={feature.id} onPress={() => openTool(feature.id)} style={({ pressed }) => [styles.toolCard, { width: `${100 / columns - (columns === 2 ? 1.7 : 1.1)}%` }, pressed && styles.pressed]}>
+              <View style={[styles.toolNumber, index % 3 === 1 && styles.toolNumberAlt]}><Text style={styles.toolNumberText}>{String(index + 1).padStart(2, "0")}</Text></View>
+              <Text style={styles.toolTitle}>{toolTitle}</Text>
+              <Text style={styles.toolDetail}>{toolDesc}</Text>
+              <Text style={styles.toolArrow}>↗</Text>
+            </Pressable>
+          );
+        })}
       </View>
       <View style={{ height: 28 }} />
+
+      <VoiceAssistantModal
+        visible={voiceVisible}
+        onClose={() => setVoiceVisible(false)}
+        currentScreen="home"
+      />
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
+  voiceButton: { paddingHorizontal: 9, paddingVertical: 7, borderRadius: 16, backgroundColor: colors.forest },
+  voiceButtonText: { fontSize: 11, fontWeight: "700", color: colors.white },
+  langToggle: { paddingHorizontal: 9, paddingVertical: 7, borderRadius: 16, backgroundColor: "#DFD8C8" },
+  langToggleText: { fontSize: 11, fontWeight: "700", color: colors.charcoal },
   tierToggle: { paddingHorizontal: 11, paddingVertical: 7, borderRadius: 16, backgroundColor: "#EBE5D8" },
   tierToggleText: { fontSize: 11, fontWeight: "700", color: colors.charcoal },
   projectLink: { paddingHorizontal: 13, paddingVertical: 9, borderRadius: 18, backgroundColor: colors.mossLight },

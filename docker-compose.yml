@@ -1,0 +1,51 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "4000:4000"
+    environment:
+      - PORT=4000
+      - NODE_ENV=production
+      - API_PREFIX=/api/v1
+      - CORS_ORIGIN=*
+      - FASTAPI_AI_URL=http://ai-engine:8000
+      - ENABLE_MONGODB=true
+      - MONGODB_URI=mongodb://mongodb:27017/artistry_ai
+      - JWT_SECRET=artistry_ai_super_secure_jwt_secret_change_in_production
+      - UPLOAD_DIR=./uploads
+      - MAX_FILE_SIZE_MB=25
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+    volumes:
+      - backend-uploads:/app/uploads
+    depends_on:
+      - mongodb
+      - ai-engine
+    restart: unless-stopped
+
+  ai-engine:
+    build:
+      context: ./ai-engine
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - HOST=0.0.0.0
+      - PORT=8000
+      - ENVIRONMENT=production
+      - CORS_ORIGINS=*
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+    restart: unless-stopped
+
+  mongodb:
+    image: mongo:7-jammy
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    restart: unless-stopped
+
+volumes:
+  backend-uploads:
+  mongo-data:

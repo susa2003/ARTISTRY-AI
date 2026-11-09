@@ -63,6 +63,10 @@ type AppStore = {
   redo: () => void;
   experienceMode: ExperienceMode;
   setExperienceMode: (mode: ExperienceMode) => Promise<void>;
+  language: "en" | "ta";
+  setLanguage: (lang: "en" | "ta") => Promise<void>;
+  setActiveBrush: (brush: "brush" | "pencil" | "pen" | "eraser") => void;
+  clearActiveLayer: () => void;
   lessonProgress: Record<string, boolean>;
   streak: { current: number; longest: number; lastActiveDate: string | null };
   loadLearningProgress: () => Promise<void>;
@@ -82,15 +86,17 @@ export const useAppStore = create<AppStore>((set, get) => ({
   past: [],
   future: [],
   experienceMode: "beginner",
+  language: "en",
   lessonProgress: {},
   streak: { current: 0, longest: 0, lastActiveDate: null },
   hydrate: async () => {
-    const [projects, reference, lessons, streakData, mode] = await Promise.all([
+    const [projects, reference, lessons, streakData, mode, lang] = await Promise.all([
       database.listProjects(),
       database.getActiveReference(),
       database.getLessonProgress(),
       database.getStreakData(),
       database.getExperienceMode(),
+      database.getAppLanguage(),
     ]);
     const progressMap: Record<string, boolean> = {};
     Object.keys(lessons).forEach((id) => {
@@ -101,6 +107,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
       projects,
       reference,
       experienceMode: mode,
+      language: lang,
       lessonProgress: progressMap,
       streak: {
         current: streakData.currentStreak,
@@ -112,6 +119,18 @@ export const useAppStore = create<AppStore>((set, get) => ({
   setExperienceMode: async (mode) => {
     await database.setExperienceMode(mode);
     set({ experienceMode: mode });
+  },
+  setLanguage: async (lang) => {
+    await database.setAppLanguage(lang);
+    set({ language: lang });
+  },
+  setActiveBrush: (brush) => {
+    set({ tool: brush });
+  },
+  clearActiveLayer: () => {
+    const project = get().currentProject;
+    if (!project) return;
+    get().clearLayer(project.activeLayerId);
   },
   loadLearningProgress: async () => {
     const [lessons, streakData] = await Promise.all([

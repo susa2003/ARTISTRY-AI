@@ -28,6 +28,7 @@ export type ToolId =
   | "vectorizer";
 
 export type ExperienceMode = "beginner" | "professional";
+export type AppLanguage = "en" | "ta";
 
 export type BrushKind = "brush" | "pencil" | "pen" | "eraser";
 
