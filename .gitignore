@@ -37,6 +37,14 @@ yarn-error.*
 # local env files
 .env
 .env*.local
+.env.*
+!.env.example
+*.keystore
+*.jks
+*.pem
+*.p12
+*.p8
+*.key
 
 # typescript
 *.tsbuildinfo
@@ -45,4 +53,11 @@ example
 
 # generated native folders
 /ios
-/android
+# Android build artifacts and local configuration
+android/.gradle/
+android/.cxx/
+android/.externalNativeBuild/
+android/local.properties
+android/**/build/
+android/app/*.apk
+android/app/*.aab
