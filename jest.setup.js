@@ -52,6 +52,7 @@ jest.mock("@shopify/react-native-skia", () => {
 jest.mock("expo-sqlite", () => {
   const store = {
     projects: new Map(),
+    appMetadata: new Map(),
     lessonProgress: new Map(),
     challengeCompletions: [],
     streak: { current_streak: 0, longest_streak: 0, last_active_date: null },
@@ -128,6 +129,16 @@ jest.mock("expo-sqlite", () => {
           duration_ms: params[3],
           created_at: params[4],
         });
+      } else if (sql.includes("INSERT INTO app_metadata")) {
+        // sql is: INSERT INTO app_metadata (key, value) VALUES ('onboarding_completed', ?) ...
+        const match = sql.match(/VALUES \('([^']+)'/);
+        const key = match ? match[1] : params[0];
+        const val = match ? params[0] : params[1];
+        store.appMetadata.set(key, val);
+      } else if (sql.includes("DELETE FROM app_metadata")) {
+        const match = sql.match(/key = '([^']+)'/);
+        const key = match ? match[1] : params[0];
+        store.appMetadata.delete(key);
       }
       return { changes: 1, lastInsertRowId: 1 };
     }),
@@ -159,6 +170,12 @@ jest.mock("expo-sqlite", () => {
       }
       if (sql.includes("FROM stroke_replays")) {
         return store.strokeReplays.get(params[0]) ?? null;
+      }
+      if (sql.includes("FROM app_metadata")) {
+        const match = sql.match(/key = '([^']+)'/);
+        const key = match ? match[1] : params[0];
+        const val = store.appMetadata.get(key);
+        return val ? { value: val } : null;
       }
       return null;
     }),

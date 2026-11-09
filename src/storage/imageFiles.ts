@@ -38,10 +38,33 @@ export async function cacheSelectedImage(uri: string, name: string, dimensions?:
     await FileSystem.copyAsync({ from: uri, to: originalUri });
   }
   await FileSystem.copyAsync({ from: originalUri, to: uriCopy });
-  const size = dimensions?.width && dimensions.height ? dimensions : await getImageDimensions(uriCopy);
+  const rawSize = dimensions?.width && dimensions.height ? dimensions : await getImageDimensions(uriCopy);
+  let finalWidth = rawSize.width;
+  let finalHeight = rawSize.height;
+
+  // Constrain texture bounds for hardware acceleration stability & memory protection (max 2048px)
+  const MAX_WORKING_DIM = 2048;
+  if (rawSize.width > MAX_WORKING_DIM || rawSize.height > MAX_WORKING_DIM) {
+    try {
+      const scale = Math.min(MAX_WORKING_DIM / rawSize.width, MAX_WORKING_DIM / rawSize.height);
+      const targetWidth = Math.round(rawSize.width * scale);
+      const resized = await ImageManipulator.manipulateAsync(
+        uriCopy,
+        [{ resize: { width: targetWidth } }],
+        { compress: 0.95, format: ImageManipulator.SaveFormat.JPEG }
+      );
+      await FileSystem.copyAsync({ from: resized.uri, to: uriCopy });
+      const newSize = await getImageDimensions(uriCopy);
+      finalWidth = newSize.width;
+      finalHeight = newSize.height;
+    } catch {
+      // Fallback to unresized copy if manipulator fails
+    }
+  }
+
   const reference: LocalReference = {
     id, name: name || `Reference.${fileExt}`, uri: uriCopy, originalUri,
-    width: size.width, height: size.height, isEdited: false, updatedAt: Date.now(),
+    width: finalWidth, height: finalHeight, isEdited: false, updatedAt: Date.now(),
   };
   return reference;
 }

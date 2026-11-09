@@ -27,3 +27,7 @@ export const config = {
     keyFilePath: process.env.GOOGLE_PLAY_KEY_FILE || "",
   },
 };
+
+if (config.env === "production" && (!process.env.JWT_SECRET || process.env.JWT_SECRET.includes("dev_only"))) {
+  console.warn("⚠️ [SECURITY WARNING] Production environment detected with default or missing JWT_SECRET! Ensure a 256-bit cryptographic secret is set.");
+}

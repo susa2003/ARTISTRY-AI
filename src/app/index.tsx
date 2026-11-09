@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Alert, Image, Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
+import { useEffect, useState } from "react";
+import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { router } from "expo-router";
 import { AppHeader, Button, Eyebrow, InfoCard, Screen, SectionHeading } from "../components/AppUI";
 import { FEATURES } from "../domain/features";
@@ -11,11 +11,17 @@ import { useAuthStore } from "../state/authStore";
 import { colors } from "../theme";
 import type { ToolId } from "../domain/types";
 
+type ToolCategoryFilter = "all" | "core" | "ai-studio" | "assistant" | "processing" | "pro";
+
 export default function HomeScreen() {
   const { width } = useWindowDimensions();
   const isMobile = width < 600;
-  const columns = width > 760 ? 4 : 2;
+  const isTablet = width >= 800;
+  const columns = isTablet ? 4 : isMobile ? 2 : 3;
   const { t, language, setLanguage } = useTranslation();
+  const ready = useAppStore((state) => state.ready);
+  const onboardingCompleted = useAppStore((state) => state.onboardingCompleted);
+  const projects = useAppStore((state) => state.projects);
   const reference = useAppStore((state) => state.reference);
   const createProject = useAppStore((state) => state.createProject);
   const experienceMode = useAppStore((state) => state.experienceMode);
@@ -23,6 +29,13 @@ export default function HomeScreen() {
   const user = useAuthStore((state) => state.user);
   const [busy, setBusy] = useState(false);
   const [voiceVisible, setVoiceVisible] = useState(false);
+  const [categoryFilter, setCategoryFilter] = useState<ToolCategoryFilter>("all");
+
+  useEffect(() => {
+    if (ready && !onboardingCompleted) {
+      router.replace("/onboarding" as any);
+    }
+  }, [ready, onboardingCompleted]);
 
   const startDrawing = async (withReference = false) => {
     try {
@@ -44,6 +57,11 @@ export default function HomeScreen() {
   };
 
   const openTool = (id: ToolId) => router.push(`/tools/${id}`);
+
+  const filteredFeatures = FEATURES.filter((f) => {
+    if (categoryFilter === "all") return true;
+    return f.category === categoryFilter;
+  });
 
   return (
     <Screen>
@@ -70,17 +88,23 @@ export default function HomeScreen() {
                 {experienceMode === "beginner" ? (language === "ta" ? "🌱 தொடக்கம்" : "🌱 Beginner") : (language === "ta" ? "⚡ தொழில்" : "⚡ Pro")}
               </Text>
             </Pressable>
+            <Pressable
+              onPress={() => router.push("/subscription" as any)}
+              style={styles.creditPill}
+            >
+              <Text style={styles.creditPillTier}>{(user?.subscriptionTier || "free").toUpperCase()}</Text>
+              <Text style={styles.creditPillCount}>{user?.creditBalance ?? 50}c</Text>
+            </Pressable>
             <Pressable onPress={() => router.push("/profile" as any)} style={styles.profileButton}>
               <Text style={styles.profileButtonText}>
                 {user ? user.displayName.charAt(0).toUpperCase() : "👤"}
               </Text>
             </Pressable>
-            <Pressable onPress={() => router.push("/projects")} style={styles.projectLink}>
-              <Text style={styles.projectLinkText}>{language === "ta" ? "ஓவியங்கள் ›" : "Projects ›"}</Text>
-            </Pressable>
           </View>
         }
       />
+
+      {/* Hero Section */}
       <View style={[styles.hero, isMobile && { flexDirection: "column", padding: 20 }]}>
         <View style={[styles.heroCopy, isMobile && { maxWidth: "100%" }]}>
           <Eyebrow>{language === "ta" ? "உங்கள் அமைதியான பயிற்சி இடம்" : "YOUR QUIET PLACE TO PRACTICE"}</Eyebrow>
@@ -109,6 +133,44 @@ export default function HomeScreen() {
         ) : null}
       </View>
 
+      {/* Recent Projects Shelf (If any exist) */}
+      {projects && projects.length > 0 ? (
+        <View style={styles.recentSection}>
+          <View style={styles.recentHeader}>
+            <SectionHeading
+              title={language === "ta" ? "சமீபத்திய ஓவியங்கள்" : "Recent Projects"}
+              detail={`${projects.length} ${language === "ta" ? "திட்டங்கள் சேமிக்கப்பட்டுள்ளன" : "saved locally"}`}
+            />
+            <Pressable onPress={() => router.push("/projects")} style={styles.viewAllBtn}>
+              <Text style={styles.viewAllText}>{language === "ta" ? "அனைத்தும் ›" : "View All ›"}</Text>
+            </Pressable>
+          </View>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.recentScroll}>
+            {projects.slice(0, 6).map((proj) => (
+              <Pressable
+                key={proj.id}
+                onPress={() => router.push(`/studio/${proj.id}` as any)}
+                style={styles.recentCard}
+              >
+                <View style={styles.recentThumb}>
+                  <Text style={styles.recentIcon}>🎨</Text>
+                  <Text style={styles.recentLayerCount}>
+                    {proj.width}×{proj.height}
+                  </Text>
+                </View>
+                <Text style={styles.recentTitle} numberOfLines={1}>
+                  {proj.name}
+                </Text>
+                <Text style={styles.recentDate}>
+                  {new Date(proj.updatedAt).toLocaleDateString()}
+                </Text>
+              </Pressable>
+            ))}
+          </ScrollView>
+        </View>
+      ) : null}
+
+      {/* Reference Import Card */}
       <SectionHeading title={language === "ta" ? "மாதிரிப் படத்தை இணைக்க" : "Bring in a reference"} detail={language === "ta" ? "விருப்பத்தேர்வு · அசல் படம் மாறாது" : "Optional · original stays untouched"} />
       <InfoCard style={styles.importCard}>
         <View style={styles.importCopy}>
@@ -123,15 +185,53 @@ export default function HomeScreen() {
         {reference ? <Pressable onPress={() => router.push("/reference")} style={styles.thumbWrap} accessibilityLabel="Open reference preview"><Image source={{ uri: reference.uri }} style={styles.thumb} /><Text style={styles.thumbLabel}>Preview</Text></Pressable> : <View style={styles.importGlyph}><Text style={styles.importGlyphText}>＋</Text></View>}
       </InfoCard>
 
-      <SectionHeading title={language === "ta" ? "AI வரைதல் நுண்ணறிவு சுற்றுச்சூழல்" : "AI Drawing Intelligence Ecosystem"} detail={language === "ta" ? "27 ஸ்டுடியோக்கள் & கருவிகள் · ஆஃப்லைன் தயார்" : "27 studios & assistants · Offline-ready"} />
+      {/* 27 Studio Tools & Assistants with Category Tabs */}
+      <SectionHeading
+        title={language === "ta" ? "AI வரைதல் நுண்ணறிவு சுற்றுச்சூழல்" : "AI Drawing Intelligence Ecosystem"}
+        detail={language === "ta" ? "27 ஸ்டுடியோக்கள் & கருவிகள் · ஆஃப்லைன் தயார்" : "27 studios & assistants · Offline-ready"}
+      />
+
+      {/* Category Filter Tabs */}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterTabs}>
+        {[
+          { key: "all", label: language === "ta" ? "அனைத்தும் (27)" : "All (27)" },
+          { key: "core", label: language === "ta" ? "அடிப்படை (11)" : "Classical (11)" },
+          { key: "ai-studio", label: language === "ta" ? "AI ஸ்டுடியோ (4)" : "AI Studio (4)" },
+          { key: "assistant", label: language === "ta" ? "AI பயிற்சியாளர்கள் (4)" : "Coaches (4)" },
+          { key: "processing", label: language === "ta" ? "படம் செயலாக்கம் (4)" : "Processing (4)" },
+          { key: "pro", label: language === "ta" ? "தொழில்முறை (4)" : "Pro Tools (4)" },
+        ].map((tab) => (
+          <Pressable
+            key={tab.key}
+            onPress={() => setCategoryFilter(tab.key as ToolCategoryFilter)}
+            style={[styles.filterTab, categoryFilter === tab.key && styles.filterTabActive]}
+          >
+            <Text style={[styles.filterTabText, categoryFilter === tab.key && styles.filterTabTextActive]}>
+              {tab.label}
+            </Text>
+          </Pressable>
+        ))}
+      </ScrollView>
+
+      {/* Tools Grid */}
       <View style={[styles.toolGrid, { gap: 11 }]}>
-        {FEATURES.map((feature, index) => {
+        {filteredFeatures.map((feature, index) => {
           const localized = (t.tools as any)?.[feature.id];
           const toolTitle = localized?.name || feature.title;
           const toolDesc = localized?.desc || feature.detail;
           return (
-            <Pressable key={feature.id} onPress={() => openTool(feature.id)} style={({ pressed }) => [styles.toolCard, { width: `${100 / columns - (columns === 2 ? 1.7 : 1.1)}%` }, pressed && styles.pressed]}>
-              <View style={[styles.toolNumber, index % 3 === 1 && styles.toolNumberAlt]}><Text style={styles.toolNumberText}>{String(index + 1).padStart(2, "0")}</Text></View>
+            <Pressable
+              key={feature.id}
+              onPress={() => openTool(feature.id)}
+              style={({ pressed }) => [
+                styles.toolCard,
+                { width: `${100 / columns - (columns === 2 ? 1.7 : columns === 3 ? 1.4 : 1.1)}%` },
+                pressed && styles.pressed,
+              ]}
+            >
+              <View style={[styles.toolNumber, index % 3 === 1 && styles.toolNumberAlt]}>
+                <Text style={styles.toolNumberText}>{String(index + 1).padStart(2, "0")}</Text>
+              </View>
               <Text style={styles.toolTitle}>{toolTitle}</Text>
               <Text style={styles.toolDetail}>{toolDesc}</Text>
               <Text style={styles.toolArrow}>↗</Text>
@@ -157,8 +257,9 @@ const styles = StyleSheet.create({
   langToggleText: { fontSize: 11, fontWeight: "700", color: colors.charcoal },
   tierToggle: { paddingHorizontal: 11, paddingVertical: 7, borderRadius: 16, backgroundColor: "#EBE5D8" },
   tierToggleText: { fontSize: 11, fontWeight: "700", color: colors.charcoal },
-  projectLink: { paddingHorizontal: 13, paddingVertical: 9, borderRadius: 18, backgroundColor: colors.mossLight },
-  projectLinkText: { fontSize: 12, fontWeight: "700", color: colors.moss },
+  creditPill: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 16, backgroundColor: "#E2ECE5", borderWidth: 1, borderColor: "#C6DDD0" },
+  creditPillTier: { fontSize: 10, fontWeight: "800", color: colors.forest, letterSpacing: 0.5 },
+  creditPillCount: { fontSize: 11, fontWeight: "700", color: colors.copper },
   profileButton: { width: 34, height: 34, borderRadius: 17, backgroundColor: colors.paper, borderWidth: 1, borderColor: colors.line, alignItems: "center", justifyContent: "center" },
   profileButtonText: { fontSize: 14, fontWeight: "700", color: colors.ink },
   hero: { minHeight: 300, flexDirection: "row", alignItems: "center", backgroundColor: "#ECEFE6", borderRadius: 28, padding: 25, overflow: "hidden" },
@@ -179,6 +280,17 @@ const styles = StyleSheet.create({
   artLetter: { color: "#18251F", fontSize: 31, fontFamily: "Georgia", fontStyle: "italic", marginTop: 69 },
   artCaption: { position: "absolute", bottom: 12, fontSize: 7, letterSpacing: 1.7, color: colors.muted },
   artMark: { position: "absolute", fontSize: 28, right: 13, top: 13, color: colors.clay },
+  recentSection: { marginTop: 16, marginBottom: 8 },
+  recentHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  viewAllBtn: { paddingVertical: 4, paddingHorizontal: 8 },
+  viewAllText: { fontSize: 13, fontWeight: "600", color: colors.moss },
+  recentScroll: { gap: 12, paddingVertical: 8 },
+  recentCard: { width: 130, backgroundColor: colors.paper, borderRadius: 16, padding: 10, borderWidth: 1, borderColor: colors.line },
+  recentThumb: { height: 72, backgroundColor: "#ECEFE6", borderRadius: 10, alignItems: "center", justifyContent: "center", marginBottom: 8 },
+  recentIcon: { fontSize: 24, marginBottom: 2 },
+  recentLayerCount: { fontSize: 9, color: colors.muted, fontWeight: "600" },
+  recentTitle: { fontSize: 13, fontWeight: "700", color: colors.ink, marginBottom: 2 },
+  recentDate: { fontSize: 10, color: colors.muted },
   importCard: { flexDirection: "row", gap: 16, alignItems: "center" },
   importCopy: { flex: 1 },
   importTitle: { color: colors.ink, fontSize: 16, fontWeight: "700" },
@@ -190,6 +302,11 @@ const styles = StyleSheet.create({
   thumbWrap: { width: 78, alignItems: "center", gap: 4 },
   thumb: { width: 76, height: 76, borderRadius: 16, backgroundColor: colors.mossLight },
   thumbLabel: { color: colors.moss, fontSize: 10, fontWeight: "700" },
+  filterTabs: { flexDirection: "row", gap: 8, paddingVertical: 8, marginBottom: 12 },
+  filterTab: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: "#EAE6DB", borderWidth: 1, borderColor: "transparent" },
+  filterTabActive: { backgroundColor: colors.forest, borderColor: colors.forest },
+  filterTabText: { fontSize: 12, fontWeight: "600", color: colors.charcoal },
+  filterTabTextActive: { color: "#fff", fontWeight: "700" },
   toolGrid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between" },
   toolCard: { minHeight: 150, backgroundColor: colors.paper, borderWidth: 1, borderColor: colors.line, borderRadius: 19, padding: 15, marginBottom: 1 },
   toolNumber: { width: 28, height: 28, borderRadius: 9, alignItems: "center", justifyContent: "center", backgroundColor: "#E8EEE7", marginBottom: 12 },

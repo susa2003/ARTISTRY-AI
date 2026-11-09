@@ -629,3 +629,23 @@ export async function clearStoredAuth(): Promise<void> {
   const db = await database();
   await db.runAsync("DELETE FROM app_metadata WHERE key = 'auth_session'");
 }
+
+// =========================================================================
+// PHASE 7: ONBOARDING COMPLETION PERSISTENCE
+// =========================================================================
+
+export async function getOnboardingCompleted(): Promise<boolean> {
+  const db = await database();
+  const row = await db.getFirstAsync<{ value: string }>(
+    "SELECT value FROM app_metadata WHERE key = 'onboarding_completed'"
+  );
+  return row?.value === "true";
+}
+
+export async function setOnboardingCompleted(completed: boolean): Promise<void> {
+  const db = await database();
+  await db.runAsync(
+    "INSERT INTO app_metadata (key, value) VALUES ('onboarding_completed', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+    completed ? "true" : "false"
+  );
+}

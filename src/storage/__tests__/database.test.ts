@@ -4,9 +4,18 @@ import {
   recordChallengeCompletion,
   getStreakData,
   getChallengeHistory,
+  getOnboardingCompleted,
+  setOnboardingCompleted,
 } from "../database";
 
 describe("SQLite Persistence (Phase 3 Learning & Challenges)", () => {
+  test("persists and retrieves onboarding completion state", async () => {
+    await setOnboardingCompleted(false);
+    expect(await getOnboardingCompleted()).toBe(false);
+    await setOnboardingCompleted(true);
+    expect(await getOnboardingCompleted()).toBe(true);
+  });
+
   test("persists lesson completion and toggles status", async () => {
     // Record lesson 1 as complete
     await recordLessonProgress("lesson-01", true);

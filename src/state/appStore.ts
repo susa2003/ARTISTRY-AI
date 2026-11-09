@@ -65,6 +65,8 @@ type AppStore = {
   setExperienceMode: (mode: ExperienceMode) => Promise<void>;
   language: "en" | "ta";
   setLanguage: (lang: "en" | "ta") => Promise<void>;
+  onboardingCompleted: boolean;
+  setOnboardingCompleted: (completed: boolean) => Promise<void>;
   setActiveBrush: (brush: "brush" | "pencil" | "pen" | "eraser") => void;
   clearActiveLayer: () => void;
   lessonProgress: Record<string, boolean>;
@@ -87,16 +89,18 @@ export const useAppStore = create<AppStore>((set, get) => ({
   future: [],
   experienceMode: "beginner",
   language: "en",
+  onboardingCompleted: false,
   lessonProgress: {},
   streak: { current: 0, longest: 0, lastActiveDate: null },
   hydrate: async () => {
-    const [projects, reference, lessons, streakData, mode, lang] = await Promise.all([
+    const [projects, reference, lessons, streakData, mode, lang, onboardingDone] = await Promise.all([
       database.listProjects(),
       database.getActiveReference(),
       database.getLessonProgress(),
       database.getStreakData(),
       database.getExperienceMode(),
       database.getAppLanguage(),
+      database.getOnboardingCompleted(),
     ]);
     const progressMap: Record<string, boolean> = {};
     Object.keys(lessons).forEach((id) => {
@@ -108,6 +112,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
       reference,
       experienceMode: mode,
       language: lang,
+      onboardingCompleted: onboardingDone,
       lessonProgress: progressMap,
       streak: {
         current: streakData.currentStreak,
@@ -115,6 +120,10 @@ export const useAppStore = create<AppStore>((set, get) => ({
         lastActiveDate: streakData.lastActiveDate,
       },
     });
+  },
+  setOnboardingCompleted: async (completed) => {
+    await database.setOnboardingCompleted(completed);
+    set({ onboardingCompleted: completed });
   },
   setExperienceMode: async (mode) => {
     await database.setExperienceMode(mode);
