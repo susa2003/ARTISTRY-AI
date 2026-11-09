@@ -57,6 +57,16 @@ ARTISTRY AI operates on an honest, transparent AI provider layer (`src/services/
 - **Use a reference:** pick one image from Android's photo picker, camera, or document picker. JPG/JPEG/PNG/WEBP are accepted. ARTISTRY AI keeps an app-owned original and a separate working copy; transforms never overwrite the source image.
 - **Image companions:** all 27 studio tools work from either blank canvases or selected local references with real-time local previews.
 
+## Phase 6 Commercial Ecosystem & Architecture
+
+ARTISTRY AI includes a production-grade commercial backend and monetization system:
+- **Authentication & User Profiles:** Node.js `crypto.scrypt` password hashing with 32-byte salt and constant-time verification, short-lived 15m JWTs, rotating 30d refresh tokens with replay-attack detection, and Google OAuth sign-in.
+- **Subscription & Entitlement System:** 3-tier catalog (Free, Pro @ $9.99/mo, Premium @ $19.99/mo), monthly/yearly billing, 3-day grace period, and express middleware feature gates (`requireTier`, `requireFeature`).
+- **Google Play Billing Verification:** Cryptographic server-side purchase token verification for Android package `ai.artistry.studio`, duplicate token rejection, and zero client-side grant fabrication.
+- **AI Credit Management:** Cost schedule (0 credits for classical tools, 5 credits for critique, 10 credits for diffusion), atomic deduction via MongoDB `$inc` with `$gte` balance condition, idempotency keys, and safe refund guarantees.
+- **Admin Control Plane:** Role-based access control (`requireAdmin`), system overview metrics, user search and inspection, self-safe user suspension, manual credit grants, and audit logging.
+- **Privacy & Regulatory Compliance:** GDPR Article 20 JSON data portability export, GDPR Article 17 Right to Erasure account deletion with password re-authentication, statutory financial PII anonymization, and in-app notifications.
+
 ## Development
 
 ```powershell

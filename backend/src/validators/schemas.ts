@@ -157,3 +157,104 @@ export const VoiceProcessSchema = z.object({
   language: z.enum(["en", "ta"]).default("en"),
   currentScreen: z.string().optional(),
 });
+
+// --- Phase 6: Authentication & User Profile Schemas ---
+
+export const RegisterSchema = z
+  .object({
+    email: z.string().email("Invalid email address").toLowerCase().trim(),
+    password: z.string().min(8, "Password must be at least 8 characters"),
+    confirmPassword: z.string(),
+    displayName: z.string().min(1, "Full name is required").max(60, "Name too long").trim(),
+    consentTerms: z.boolean().refine((val) => val === true, {
+      message: "You must accept the terms of service and privacy policy",
+    }),
+    language: z.enum(["en", "ta"]).default("en"),
+    experienceMode: z.enum(["beginner", "professional"]).default("beginner"),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Passwords do not match",
+    path: ["confirmPassword"],
+  });
+
+export const LoginSchema = z.object({
+  email: z.string().email("Invalid email address").toLowerCase().trim(),
+  password: z.string().min(1, "Password is required"),
+  deviceId: z.string().optional(),
+});
+
+export const GoogleLoginSchema = z.object({
+  idToken: z.string().min(1, "Google ID token is required"),
+  deviceId: z.string().optional(),
+});
+
+export const RefreshTokenSchema = z.object({
+  refreshToken: z.string().min(1, "Refresh token is required"),
+});
+
+export const ForgotPasswordSchema = z.object({
+  email: z.string().email("Invalid email address").toLowerCase().trim(),
+});
+
+export const ResetPasswordSchema = z
+  .object({
+    token: z.string().min(1, "Reset token is required"),
+    newPassword: z.string().min(8, "Password must be at least 8 characters"),
+    confirmPassword: z.string(),
+  })
+  .refine((data) => data.newPassword === data.confirmPassword, {
+    message: "Passwords do not match",
+    path: ["confirmPassword"],
+  });
+
+export const ChangePasswordSchema = z
+  .object({
+    oldPassword: z.string().min(1, "Current password is required"),
+    newPassword: z.string().min(8, "New password must be at least 8 characters"),
+    confirmPassword: z.string(),
+  })
+  .refine((data) => data.newPassword === data.confirmPassword, {
+    message: "Passwords do not match",
+    path: ["confirmPassword"],
+  });
+
+export const VerifyEmailSchema = z.object({
+  token: z.string().min(1, "Verification token is required"),
+});
+
+export const UpdateProfileSchema = z.object({
+  displayName: z.string().min(1).max(60).trim().optional(),
+  avatarUrl: z.string().optional(),
+  language: z.enum(["en", "ta"]).optional(),
+  experienceMode: z.enum(["beginner", "professional"]).optional(),
+  drawingPreferences: z
+    .object({
+      defaultBrush: z.string().optional(),
+      smoothing: z.string().optional(),
+      autoSaveIntervalMs: z.number().min(1000).max(60000).optional(),
+    })
+    .optional(),
+});
+
+export const VerifyPurchaseSchema = z.object({
+  packageName: z.string().default("ai.artistry.studio"),
+  productId: z.string().min(1, "Product ID is required"),
+  purchaseToken: z.string().min(1, "Purchase token is required"),
+  orderId: z.string().optional(),
+});
+
+export const AdminSuspendUserSchema = z.object({
+  isSuspended: z.boolean(),
+  reason: z.string().max(255).optional(),
+});
+
+export const AdminAdjustCreditsSchema = z.object({
+  amount: z.number().int().refine((val) => val !== 0, {
+    message: "Amount must be a non-zero integer",
+  }),
+  reason: z.string().min(3, "Reason must be at least 3 characters").max(255),
+});
+
+export const AdminSetRoleSchema = z.object({
+  role: z.enum(["user", "artist", "admin"]),
+});

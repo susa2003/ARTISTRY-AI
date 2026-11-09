@@ -591,3 +591,41 @@ export async function setAppLanguage(lang: "en" | "ta"): Promise<void> {
     lang
   );
 }
+
+// =========================================================================
+// PHASE 6: AUTHENTICATION & SESSION PERSISTENCE
+// =========================================================================
+
+export interface StoredAuthSession {
+  user: any;
+  tokens: {
+    accessToken: string;
+    refreshToken: string;
+  };
+}
+
+export async function getStoredAuth(): Promise<StoredAuthSession | null> {
+  const db = await database();
+  const row = await db.getFirstAsync<{ value: string }>(
+    "SELECT value FROM app_metadata WHERE key = 'auth_session'"
+  );
+  if (!row?.value) return null;
+  try {
+    return JSON.parse(row.value);
+  } catch {
+    return null;
+  }
+}
+
+export async function setStoredAuth(session: StoredAuthSession): Promise<void> {
+  const db = await database();
+  await db.runAsync(
+    "INSERT INTO app_metadata (key, value) VALUES ('auth_session', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+    JSON.stringify(session)
+  );
+}
+
+export async function clearStoredAuth(): Promise<void> {
+  const db = await database();
+  await db.runAsync("DELETE FROM app_metadata WHERE key = 'auth_session'");
+}

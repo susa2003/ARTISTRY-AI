@@ -14,4 +14,6 @@ export const colors = {
   dark: "#25332D",
   white: "#FFFFFF",
   danger: "#A74335",
+  sage: "#28594B",
+  copper: "#CB7857",
 };

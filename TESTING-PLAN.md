@@ -7,14 +7,33 @@ This testing plan governs all validation phases for **ARTISTRY AI** across the R
 ## 1. Test Categories & Verification Scope
 
 ### 1.1 Type Safety & Static Analysis
-- **Command:** `npm run typecheck` (`tsc --noEmit`)
-- **Criteria:** 0 TypeScript compiler errors across all client source code (`src/`).
-- **Status:** ✅ VERIFIED (0 errors across whole project, including Jest tests and app code).
+- **Client Command:** `npm run typecheck` (`tsc --noEmit`)
+- **Backend Command:** `cd backend && npm run typecheck` (`tsc --noEmit`)
+- **Criteria:** 0 TypeScript compiler errors across all client source code (`src/`) and backend source code (`backend/src/`).
+- **Status:** ✅ VERIFIED (0 errors across entire workspace, including Jest tests, models, and controllers).
 
-### 1.2 Automated Jest Unit Test Suite
+### 1.2 Automated Jest Unit Test Suite (Client)
 - **Command:** `npm test` (`jest`)
 - **Coverage Target:** 100% of mathematical, geometric, and persistence engines.
-- **Results:** ✅ 18 Test Suites Passed, 44 Tests Passed (100% Success Rate)
+- **Results:** ✅ 21 Test Suites Passed, 55 Tests Passed (100% Success Rate)
+
+### 1.3 Automated Jest Unit Test Suite (Backend)
+- **Command:** `cd backend && npm test` (`jest --runInBand --forceExit`)
+- **Results:** ✅ 10 Test Suites Passed, 70 Tests Passed (100% Success Rate)
+  1. `tests/auth.test.ts` (14 tests: Scrypt password hashing, timing-safe verification, JWT access tokens, rotating refresh tokens with replay-attack detection, password resets, email verification, session revocation).
+  2. `tests/subscriptions.test.ts` (6 tests: 3-tier catalog, feature entitlement guards `requireTier`/`requireFeature`, grace-period handling, cancellation, entitlement restore).
+  3. `tests/billing.test.ts` (5 tests: Google Play package verification `ai.artistry.studio`, duplicate token rejection, product ID verification, sandbox bypass).
+  4. `tests/credits.test.ts` (6 tests: credit balance retrieval, 0-cost classical tool exemption, atomic deduction with `$gte`, idempotency keys, single-use refund protection).
+  5. `tests/admin.test.ts` (14 tests: RBAC guard `requireAdmin` 403 enforcement, system overview metrics, user search and pagination, target inspection, self-safe user suspension, admin credit adjustment, role management, audit logging).
+  6. `tests/privacy.test.ts` (10 tests: GDPR Article 20 data portability JSON export, GDPR Article 17 account deletion with password verification and statutory PII anonymization, in-app notifications lifecycle).
+  7. `tests/ai_features.test.ts` (6 tests: sketch conversion, drawing analysis, reference generation, pose detection, lighting analysis, art mentor chat).
+  8. `tests/system.test.ts` (3 tests: `/health`, `/providers/status`, `/health` flat alias).
+  9. `tests/integration.test.ts` (3 tests: full end-to-end processing pipeline).
+  10. `tests/routes.test.ts` (3 tests: route mapping and error handling).
+
+### 1.4 Automated Python Microservice Test Suite (AI Engine)
+- **Command:** `cd ai-engine && set PYTHONPATH=. && .venv\Scripts\python -m pytest`
+- **Results:** ✅ 7 Tests Passed (100% Success Rate) covering OpenCV line art extraction, pose detection, lighting raycasting, and segmentation.
   1. `src/features/anatomy/__tests__/AnatomyEngine.test.ts` (6 tests: standard 8-head canon, 8.5/7.5 head canons, skeletal landmarks, muscle group contours, canvas guide stroke generation, 4-step tutorial canon).
   2. `src/features/perspective/__tests__/PerspectiveEngine.test.ts` (5 tests: 1-point central VP, 2-point left/right VPs, 3-point zenith/nadir VPs, stroke conversion for canvas).
   3. `src/features/shading/__tests__/ShadingEngine.test.ts` (3 tests: 5 canonical tonal values, 360° directional light bias, 3-value study option).
@@ -153,4 +172,4 @@ This testing plan governs all validation phases for **ARTISTRY AI** across the R
 
 ---
 
-*Last Updated: 2026-11-09 (Phase 4 100% Completed & Verified)*
+*Last Updated: 2026-11-09 (Phase 6 100% Completed & Verified across Client, Backend, and AI Engine)*

@@ -57,14 +57,16 @@ This matrix tracks the implementation, integration, and verification status of e
 | 36 | **AI Art Mentor** | Native Client + AI | Yes (Local) / Cloud | ✅ IMPLEMENTED & TESTED | Interactive atelier coach, technique explanations, progress-adaptive guidance, beginner/pro tiers, and studio action suggestions. |
 | 37 | **Sketch-to-Vector Converter** | Native Client + AI | Yes (Local) / Cloud | ✅ IMPLEMENTED & TESTED | Bézier contour tracing, path tolerance, curve smoothness, SVG export, and canvas guide layer import. |
 | 38 | **Dual Experience Mode (Beginner vs Pro)** | Native Client | Yes | ✅ IMPLEMENTED & TESTED | Seamless tier toggle across home and studios, providing beginner-guided tips or professional granular sliders and coordinate telemetry. |
-| 39 | **Subscription Management** | Client + Backend | Yes (Offline grace) | ⏳ PENDING | Tier gates and Play Billing integration scheduled for Phase 6. |
-| 40 | **Secure User Authentication** | Client + Backend | Yes (Offline Guest) | ⏳ PENDING | JWT auth and guest mode fallback scheduled for Phase 6. |
-| 41 | **Admin Management** | Backend + Web/App | No | ⏳ PENDING | Administrative control plane scheduled for Phase 6. |
-| 42 | **Node.js Express Backend** | Backend Tier | No | ⏳ PENDING | REST API service scheduled for Phase 5. |
-| 43 | **Python FastAPI AI Engine** | AI Tier | No | ⏳ PENDING | Computer vision & MediaPipe microservice scheduled for Phase 5. |
-| 44 | **MongoDB Cloud Store** | Database Tier | No | ⏳ PENDING | Cloud database scheduled for Phase 5. |
-| 45 | **Release Android APK & AAB** | Native Build | Yes | ✅ IMPLEMENTED & TESTED | Offline standalone debug APK built (`app-artistry-offline.apk`), zip-aligned, signed with v1/v2 signatures, installed and verified running smoothly on Android emulator `ARTISTRY_API36`. |
+| 39 | **Subscription & Entitlement System** | Client + Backend | Yes (Offline grace) | ✅ IMPLEMENTED & TESTED | 3-tier catalog (Free, Pro @ $9.99/mo, Premium @ $19.99/mo), monthly/yearly switcher, feature entitlement guards (`requireTier`, `requireFeature`), grace period handling, cancellation, and restore. |
+| 40 | **Secure User Authentication & Profiles** | Client + Backend | Yes (Offline Guest) | ✅ IMPLEMENTED & TESTED | Scrypt password hashing with constant-time verification, rotating refresh tokens with replay-detection, Google OAuth sign-in, profile management, and guest fallback. |
+| 41 | **Google Play Billing Verification** | Backend Tier | No (Server verification) | ✅ IMPLEMENTED & TESTED | Server-side purchase token cryptographic verification, package name (`ai.artistry.studio`) enforcement, anti-replay single-use token indexes, and test token support. |
+| 42 | **AI Credits & Usage Management** | Client + Backend | Yes (Offline Canvas Exempt) | ✅ IMPLEMENTED & TESTED | Cost schedule catalog, atomic deduction (`$inc` + `$gte`), idempotency keys preventing double deduction, safe job refunds, and transaction history. |
+| 43 | **Admin Dashboard & Management** | Backend Tier | No | ✅ IMPLEMENTED & TESTED | System overview metrics (MRR, user stats, system health), user search & pagination, target inspection, self-safe user suspension, manual credit adjustment, role management, and audit logging. |
+| 44 | **Privacy, Data Export & Account Deletion** | Client + Backend | Yes | ✅ IMPLEMENTED & TESTED | GDPR Article 20 data portability JSON export (`GET /api/v1/user/export-data`), GDPR Article 17 account deletion with password verification and statutory PII anonymization, in-app notifications. |
+| 45 | **Node.js Express TypeScript Backend** | Backend Tier | No | ✅ IMPLEMENTED & TESTED | Complete modular architecture with MongoDB Mongoose, rate limiters, security headers, file storage, and async AI job queues. |
+| 46 | **Python FastAPI AI Engine** | AI Tier | No | ✅ IMPLEMENTED & TESTED | Computer vision microservice, OpenCV line extraction, pose detection, segmentation, and lighting raycasting. |
+| 47 | **Release Android APK & Package** | Native Build | Yes | ✅ IMPLEMENTED & TESTED | Offline standalone debug APK built (`app-artistry-offline.apk`), zip-aligned, signed with v1/v2 signatures, configured with package `ai.artistry.studio` and verified. |
 
 ---
 
-*Last Updated: 2026-11-09 (Phase 4 AI Drawing Intelligence Ecosystem 100% Completed & Verified)*
+*Last Updated: 2026-11-09 (Phase 6 Authentication, Subscription, Monetization & Admin Ecosystem 100% Completed & Verified)*

@@ -7,6 +7,7 @@ import { chooseImageFromDocuments, choosePhotoFromSystemPicker } from "../featur
 import { VoiceAssistantModal } from "../features/voice/VoiceAssistantModal";
 import { useTranslation } from "../i18n";
 import { useAppStore } from "../state/appStore";
+import { useAuthStore } from "../state/authStore";
 import { colors } from "../theme";
 import type { ToolId } from "../domain/types";
 
@@ -19,6 +20,7 @@ export default function HomeScreen() {
   const createProject = useAppStore((state) => state.createProject);
   const experienceMode = useAppStore((state) => state.experienceMode);
   const setExperienceMode = useAppStore((state) => state.setExperienceMode);
+  const user = useAuthStore((state) => state.user);
   const [busy, setBusy] = useState(false);
   const [voiceVisible, setVoiceVisible] = useState(false);
 
@@ -66,6 +68,11 @@ export default function HomeScreen() {
             >
               <Text style={styles.tierToggleText}>
                 {experienceMode === "beginner" ? (language === "ta" ? "🌱 தொடக்கம்" : "🌱 Beginner") : (language === "ta" ? "⚡ தொழில்" : "⚡ Pro")}
+              </Text>
+            </Pressable>
+            <Pressable onPress={() => router.push("/profile" as any)} style={styles.profileButton}>
+              <Text style={styles.profileButtonText}>
+                {user ? user.displayName.charAt(0).toUpperCase() : "👤"}
               </Text>
             </Pressable>
             <Pressable onPress={() => router.push("/projects")} style={styles.projectLink}>
@@ -152,6 +159,8 @@ const styles = StyleSheet.create({
   tierToggleText: { fontSize: 11, fontWeight: "700", color: colors.charcoal },
   projectLink: { paddingHorizontal: 13, paddingVertical: 9, borderRadius: 18, backgroundColor: colors.mossLight },
   projectLinkText: { fontSize: 12, fontWeight: "700", color: colors.moss },
+  profileButton: { width: 34, height: 34, borderRadius: 17, backgroundColor: colors.paper, borderWidth: 1, borderColor: colors.line, alignItems: "center", justifyContent: "center" },
+  profileButtonText: { fontSize: 14, fontWeight: "700", color: colors.ink },
   hero: { minHeight: 300, flexDirection: "row", alignItems: "center", backgroundColor: "#ECEFE6", borderRadius: 28, padding: 25, overflow: "hidden" },
   heroCopy: { flex: 1, zIndex: 2, maxWidth: 620 },
   headline: { fontSize: 39, lineHeight: 43, color: colors.ink, fontFamily: "Georgia", letterSpacing: -0.9 },

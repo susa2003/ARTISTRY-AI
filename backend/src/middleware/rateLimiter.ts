@@ -20,3 +20,13 @@ export const aiProcessingLimiter = rateLimit({
     sendError(res, 429, "AI_RATE_LIMIT_EXCEEDED", "AI request limit exceeded. Please wait a moment.");
   },
 });
+
+export const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 20, // 20 attempts per 15 minutes per IP
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (req, res) => {
+    sendError(res, 429, "AUTH_RATE_LIMIT_EXCEEDED", "Too many authentication attempts. Please try again in 15 minutes.");
+  },
+});

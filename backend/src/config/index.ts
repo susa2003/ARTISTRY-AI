@@ -20,4 +20,10 @@ export const config = {
     openaiApiKey: process.env.OPENAI_API_KEY || "",
     anthropicApiKey: process.env.ANTHROPIC_API_KEY || "",
   },
+  googlePlay: {
+    packageName: process.env.GOOGLE_PLAY_PACKAGE_NAME || "ai.artistry.studio",
+    serviceAccountEmail: process.env.GOOGLE_PLAY_SERVICE_ACCOUNT_EMAIL || "",
+    privateKey: process.env.GOOGLE_PLAY_PRIVATE_KEY || "",
+    keyFilePath: process.env.GOOGLE_PLAY_KEY_FILE || "",
+  },
 };
