@@ -65,6 +65,10 @@ export default function ReferenceScreen() {
         <Button title="Use another photo" onPress={() => void chooseAnother("photo")} disabled={busy} style={styles.action} />
         <Button title="Browse files" tone="line" onPress={() => void chooseAnother("file")} disabled={busy} style={styles.action} />
       </View>
+      <Button title="Open in Reference Studio" icon="✦" onPress={async () => {
+        const id = await useAppStore.getState().createProject(reference.uri, `${reference.name.replace(/\.[^.]+$/, "")} Study`);
+        router.push(`/reference-studio/${id}`);
+      }} style={styles.fullButton} />
       <Button title="Explore image tools" icon="→" onPress={() => router.push("/tools/loomis")} style={styles.fullButton} />
       <Button title="Draw on a blank canvas" tone="soft" onPress={async () => {
         const id = await useAppStore.getState().createProject(null);

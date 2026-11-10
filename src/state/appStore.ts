@@ -4,10 +4,12 @@ import type {
   DrawingLayer,
   ExperienceMode,
   LocalReference,
+  PaperSettings,
   ProjectDocument,
   ProjectSummary,
   Stroke,
   UndoSnapshot,
+  UnifiedOverlay,
 } from "../domain/types";
 import type { SmoothingLevel } from "../features/drawing/StrokeSmoothing";
 import * as database from "../storage/database";
@@ -58,6 +60,13 @@ type AppStore = {
   duplicateLayer: (id: string) => void;
   clearLayer: (id: string) => void;
   setReferenceOpacity: (opacity: number) => void;
+  setOverlays: (overlays: UnifiedOverlay[]) => void;
+  toggleOverlayVisibility: (overlayId: string) => void;
+  setOverlayOpacity: (overlayId: string, opacity: number) => void;
+  toggleOverlayLock: (overlayId: string) => void;
+  addOverlay: (overlay: UnifiedOverlay) => void;
+  removeOverlay: (overlayId: string) => void;
+  setPaperSettings: (paper: PaperSettings) => void;
   importStrokesToLayer: (layerName: string, strokes: Stroke[]) => void;
   undo: () => void;
   redo: () => void;
@@ -328,6 +337,47 @@ export const useAppStore = create<AppStore>((set, get) => ({
     const project = state.currentProject;
     if (!project) return {};
     return { currentProject: { ...project, referenceOpacity: Math.max(0.05, Math.min(1.0, opacity)), updatedAt: Date.now() } };
+  }),
+  setOverlays: (overlays) => set((state) => {
+    const project = state.currentProject;
+    if (!project) return {};
+    return { currentProject: { ...project, overlays, updatedAt: Date.now() } };
+  }),
+  toggleOverlayVisibility: (overlayId) => set((state) => {
+    const project = state.currentProject;
+    if (!project || !project.overlays) return {};
+    const overlays = project.overlays.map((o) => o.id === overlayId ? { ...o, visible: !o.visible } : o);
+    return { currentProject: { ...project, overlays, updatedAt: Date.now() } };
+  }),
+  setOverlayOpacity: (overlayId, opacity) => set((state) => {
+    const project = state.currentProject;
+    if (!project || !project.overlays) return {};
+    const clamped = Math.max(0.0, Math.min(1.0, opacity));
+    const overlays = project.overlays.map((o) => o.id === overlayId ? { ...o, opacity: clamped } : o);
+    return { currentProject: { ...project, overlays, updatedAt: Date.now() } };
+  }),
+  toggleOverlayLock: (overlayId) => set((state) => {
+    const project = state.currentProject;
+    if (!project || !project.overlays) return {};
+    const overlays = project.overlays.map((o) => o.id === overlayId ? { ...o, locked: !o.locked } : o);
+    return { currentProject: { ...project, overlays, updatedAt: Date.now() } };
+  }),
+  addOverlay: (overlay) => set((state) => {
+    const project = state.currentProject;
+    if (!project) return {};
+    const existing = project.overlays ?? [];
+    return { currentProject: { ...project, overlays: [...existing, overlay], updatedAt: Date.now() } };
+  }),
+  removeOverlay: (overlayId) => set((state) => {
+    const project = state.currentProject;
+    if (!project || !project.overlays) return {};
+    const overlays = project.overlays.filter((o) => o.id !== overlayId);
+    return { currentProject: { ...project, overlays, updatedAt: Date.now() } };
+  }),
+  setPaperSettings: (paperSettings) => set((state) => {
+    const project = state.currentProject;
+    if (!project) return {};
+    return { currentProject: { ...project, paperSettings, updatedAt: Date.now() } };
   }),
   importStrokesToLayer: (layerName, strokes) => set((state) => {
     const project = state.currentProject;

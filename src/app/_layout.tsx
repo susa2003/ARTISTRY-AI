@@ -31,6 +31,7 @@ export default function RootLayout() {
           <Stack.Screen name="projects" />
           <Stack.Screen name="tools/[id]" />
           <Stack.Screen name="studio/[id]" options={{ gestureEnabled: false }} />
+          <Stack.Screen name="reference-studio/[id]" options={{ gestureEnabled: false }} />
           <Stack.Screen name="camera" options={{ presentation: "fullScreenModal", animation: "fade" }} />
         </Stack>
       </ErrorBoundary>
