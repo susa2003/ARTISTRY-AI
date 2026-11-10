@@ -4,12 +4,18 @@ import type {
   DrawingLayer,
   ExperienceMode,
   GeneratedReferenceRecord,
+  ImageAdjustmentSettings,
   LocalReference,
+  PaperOrientation,
+  PaperSettings,
+  PaperSize,
   ProjectDocument,
   ProjectSummary,
   SavedPaletteRecord,
   StrokeReplayRecord,
+  UnifiedOverlay,
 } from "../domain/types";
+import { DEFAULT_IMAGE_ADJUSTMENTS, DEFAULT_PAPER_SETTINGS } from "../domain/types";
 
 let databasePromise: Promise<SQLite.SQLiteDatabase> | undefined;
 
@@ -113,6 +119,49 @@ async function database() {
         INSERT OR IGNORE INTO streak_data (id, current_streak, longest_streak, last_active_date)
         VALUES (1, 0, 0, NULL);
       `);
+
+      // Migration: Ensure workstation columns exist on projects table non-destructively
+      try {
+        const columns = await db.getAllAsync<{ name: string }>("PRAGMA table_info(projects);");
+        const colNames = new Set(columns.map((c) => c.name));
+
+        if (!colNames.has("paper_size")) {
+          await db.execAsync("ALTER TABLE projects ADD COLUMN paper_size TEXT DEFAULT 'A4';");
+        }
+        if (!colNames.has("paper_orientation")) {
+          await db.execAsync("ALTER TABLE projects ADD COLUMN paper_orientation TEXT DEFAULT 'portrait';");
+        }
+        if (!colNames.has("paper_width_mm")) {
+          await db.execAsync("ALTER TABLE projects ADD COLUMN paper_width_mm REAL DEFAULT 210.0;");
+        }
+        if (!colNames.has("paper_height_mm")) {
+          await db.execAsync("ALTER TABLE projects ADD COLUMN paper_height_mm REAL DEFAULT 297.0;");
+        }
+        if (!colNames.has("paper_margin_mm")) {
+          await db.execAsync("ALTER TABLE projects ADD COLUMN paper_margin_mm REAL DEFAULT 5.0;");
+        }
+        if (!colNames.has("whiteout_level")) {
+          await db.execAsync("ALTER TABLE projects ADD COLUMN whiteout_level REAL DEFAULT 0.0;");
+        }
+        if (!colNames.has("image_brightness")) {
+          await db.execAsync("ALTER TABLE projects ADD COLUMN image_brightness REAL DEFAULT 0.0;");
+        }
+        if (!colNames.has("image_contrast")) {
+          await db.execAsync("ALTER TABLE projects ADD COLUMN image_contrast REAL DEFAULT 1.0;");
+        }
+        if (!colNames.has("overlays_json")) {
+          await db.execAsync("ALTER TABLE projects ADD COLUMN overlays_json TEXT DEFAULT '[]';");
+        }
+        if (!colNames.has("adjustments_json")) {
+          await db.execAsync("ALTER TABLE projects ADD COLUMN adjustments_json TEXT DEFAULT '{}';");
+        }
+        if (!colNames.has("experience_mode")) {
+          await db.execAsync("ALTER TABLE projects ADD COLUMN experience_mode TEXT DEFAULT 'beginner';");
+        }
+      } catch {
+        // Table info check fallback
+      }
+
       return db;
     })();
   }
@@ -120,6 +169,44 @@ async function database() {
 }
 
 function decodeProject(row: Record<string, unknown>): ProjectDocument {
+  let paperSettings: PaperSettings | undefined;
+  if (row.paper_size) {
+    paperSettings = {
+      size: (row.paper_size as PaperSize) ?? "A4",
+      orientation: (row.paper_orientation as PaperOrientation) ?? "portrait",
+      widthMm: row.paper_width_mm != null ? Number(row.paper_width_mm) : 210.0,
+      heightMm: row.paper_height_mm != null ? Number(row.paper_height_mm) : 297.0,
+      marginMm: row.paper_margin_mm != null ? Number(row.paper_margin_mm) : 5.0,
+      targetDpi: 300,
+    };
+  }
+
+  let imageAdjustments: ImageAdjustmentSettings | undefined;
+  if (row.adjustments_json) {
+    try {
+      imageAdjustments = JSON.parse(String(row.adjustments_json));
+    } catch {
+      // Safe fallback
+    }
+  }
+  if (!imageAdjustments && (row.whiteout_level != null || row.image_brightness != null)) {
+    imageAdjustments = {
+      ...DEFAULT_IMAGE_ADJUSTMENTS,
+      whiteoutStrength: Number(row.whiteout_level ?? 0),
+      brightness: Number(row.image_brightness ?? 0),
+      contrast: Number(row.image_contrast ?? 1.0),
+    };
+  }
+
+  let overlays: UnifiedOverlay[] | undefined;
+  if (row.overlays_json) {
+    try {
+      overlays = JSON.parse(String(row.overlays_json)) as UnifiedOverlay[];
+    } catch {
+      overlays = [];
+    }
+  }
+
   return {
     id: String(row.id),
     name: String(row.name),
@@ -128,6 +215,11 @@ function decodeProject(row: Record<string, unknown>): ProjectDocument {
     layers: JSON.parse(String(row.layers_json)) as DrawingLayer[],
     activeLayerId: String(row.active_layer_id),
     referenceUri: row.reference_uri ? String(row.reference_uri) : null,
+    referenceOpacity: row.whiteout_level != null ? 1.0 - Number(row.whiteout_level) : undefined,
+    paperSettings,
+    imageAdjustments,
+    overlays,
+    experienceMode: (row.experience_mode as ExperienceMode) ?? undefined,
     createdAt: Number(row.created_at),
     updatedAt: Number(row.updated_at),
   };
@@ -135,12 +227,38 @@ function decodeProject(row: Record<string, unknown>): ProjectDocument {
 
 export async function saveProject(project: ProjectDocument) {
   const db = await database();
+  const paper = project.paperSettings ?? DEFAULT_PAPER_SETTINGS;
+  const adjustments = project.imageAdjustments ?? DEFAULT_IMAGE_ADJUSTMENTS;
+  const overlaysJson = JSON.stringify(project.overlays ?? []);
+  const adjustmentsJson = JSON.stringify(adjustments);
+
   await db.runAsync(
-    `INSERT INTO projects (id,name,width,height,layers_json,active_layer_id,reference_uri,created_at,updated_at)
-     VALUES (?,?,?,?,?,?,?,?,?)
-     ON CONFLICT(id) DO UPDATE SET name=excluded.name,width=excluded.width,height=excluded.height,
-     layers_json=excluded.layers_json,active_layer_id=excluded.active_layer_id,
-     reference_uri=excluded.reference_uri,updated_at=excluded.updated_at`,
+    `INSERT INTO projects (
+       id, name, width, height, layers_json, active_layer_id, reference_uri,
+       created_at, updated_at, paper_size, paper_orientation, paper_width_mm,
+       paper_height_mm, paper_margin_mm, whiteout_level, image_brightness,
+       image_contrast, overlays_json, adjustments_json, experience_mode
+     )
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+     ON CONFLICT(id) DO UPDATE SET
+       name=excluded.name,
+       width=excluded.width,
+       height=excluded.height,
+       layers_json=excluded.layers_json,
+       active_layer_id=excluded.active_layer_id,
+       reference_uri=excluded.reference_uri,
+       updated_at=excluded.updated_at,
+       paper_size=excluded.paper_size,
+       paper_orientation=excluded.paper_orientation,
+       paper_width_mm=excluded.paper_width_mm,
+       paper_height_mm=excluded.paper_height_mm,
+       paper_margin_mm=excluded.paper_margin_mm,
+       whiteout_level=excluded.whiteout_level,
+       image_brightness=excluded.image_brightness,
+       image_contrast=excluded.image_contrast,
+       overlays_json=excluded.overlays_json,
+       adjustments_json=excluded.adjustments_json,
+       experience_mode=excluded.experience_mode`,
     project.id,
     project.name,
     project.width,
@@ -150,6 +268,17 @@ export async function saveProject(project: ProjectDocument) {
     project.referenceUri ?? null,
     project.createdAt,
     project.updatedAt,
+    paper.size,
+    paper.orientation,
+    paper.widthMm,
+    paper.heightMm,
+    paper.marginMm,
+    adjustments.whiteoutStrength,
+    adjustments.brightness,
+    adjustments.contrast,
+    overlaysJson,
+    adjustmentsJson,
+    project.experienceMode ?? "beginner"
   );
 }
 

@@ -1,3 +1,5 @@
+export * from "./overlayTypes";
+
 export type ToolId =
   | "loomis"
   | "steps"
@@ -62,6 +64,10 @@ export type ProjectDocument = {
   activeLayerId: string;
   referenceUri?: string | null;
   referenceOpacity?: number;
+  paperSettings?: import("./overlayTypes").PaperSettings;
+  imageAdjustments?: import("./overlayTypes").ImageAdjustmentSettings;
+  overlays?: import("./overlayTypes").UnifiedOverlay[];
+  experienceMode?: ExperienceMode;
   createdAt: number;
   updatedAt: number;
 };

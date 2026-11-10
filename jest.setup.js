@@ -129,6 +129,31 @@ jest.mock("expo-sqlite", () => {
           duration_ms: params[3],
           created_at: params[4],
         });
+      } else if (sql.includes("INTO projects")) {
+        store.projects.set(params[0], {
+          id: params[0],
+          name: params[1],
+          width: params[2],
+          height: params[3],
+          layers_json: params[4],
+          active_layer_id: params[5],
+          reference_uri: params[6],
+          created_at: params[7],
+          updated_at: params[8],
+          paper_size: params[9],
+          paper_orientation: params[10],
+          paper_width_mm: params[11],
+          paper_height_mm: params[12],
+          paper_margin_mm: params[13],
+          whiteout_level: params[14],
+          image_brightness: params[15],
+          image_contrast: params[16],
+          overlays_json: params[17],
+          adjustments_json: params[18],
+          experience_mode: params[19],
+        });
+      } else if (sql.includes("DELETE FROM projects")) {
+        store.projects.delete(params[0]);
       } else if (sql.includes("INSERT INTO app_metadata")) {
         // sql is: INSERT INTO app_metadata (key, value) VALUES ('onboarding_completed', ?) ...
         const match = sql.match(/VALUES \('([^']+)'/);
@@ -162,9 +187,15 @@ jest.mock("expo-sqlite", () => {
       if (sql.includes("FROM saved_palettes")) {
         return Array.from(store.savedPalettes.values());
       }
+      if (sql.includes("FROM projects")) {
+        return Array.from(store.projects.values());
+      }
       return [];
     }),
     getFirstAsync: jest.fn(async (sql, ...params) => {
+      if (sql.includes("FROM projects")) {
+        return store.projects.get(params[0]) ?? null;
+      }
       if (sql.includes("FROM streak_data")) {
         return { ...store.streak };
       }
