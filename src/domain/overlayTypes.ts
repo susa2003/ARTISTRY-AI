@@ -16,7 +16,7 @@ export type OverlayType =
   | "measurement"
   | "tracing";
 
-export type PaperSize = "A4" | "A3" | "A5" | "US_LETTER" | "CUSTOM";
+export type PaperSize = "A4" | "A3" | "A5" | "A6" | "US_LETTER" | "CUSTOM";
 export type PaperOrientation = "portrait" | "landscape";
 
 export interface PaperDimensionsMm {
@@ -28,6 +28,7 @@ export const STANDARD_PAPER_SIZES: Record<Exclude<PaperSize, "CUSTOM">, PaperDim
   A4: { widthMm: 210, heightMm: 297 },
   A3: { widthMm: 297, heightMm: 420 },
   A5: { widthMm: 148, heightMm: 210 },
+  A6: { widthMm: 105, heightMm: 148 },
   US_LETTER: { widthMm: 215.9, heightMm: 279.4 },
 };
 
@@ -36,8 +37,13 @@ export interface PaperSettings {
   orientation: PaperOrientation;
   widthMm: number;
   heightMm: number;
-  marginMm: number;     // Printable safe boundary margin (standard 5.0 mm)
-  targetDpi: number;    // Target print resolution (standard 300 DPI)
+  marginMm: number;        // Printable safe boundary margin (standard 5.0 mm)
+  marginTopMm?: number;    // Independent top margin in mm
+  marginBottomMm?: number; // Independent bottom margin in mm
+  marginLeftMm?: number;   // Independent left margin in mm
+  marginRightMm?: number;  // Independent right margin in mm
+  targetDpi: number;       // Target print resolution (standard 300 DPI)
+  gridAlignment?: "centered" | "top-left" | "custom";
 }
 
 export const DEFAULT_PAPER_SETTINGS: PaperSettings = {

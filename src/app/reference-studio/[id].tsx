@@ -589,8 +589,21 @@ export default function ReferenceStudioScreen() {
                 setPaperPickerOpen(true);
               }}
             >
-              <Text style={styles.menuItemIcon}>📄</Text>
+              <Text style={styles.menuItemIcon}>📐</Text>
               <Text style={styles.menuItemText}>Smart Paper & Grid Calculator</Text>
+            </Pressable>
+
+            <Pressable
+              style={styles.menuItem}
+              onPress={() => {
+                setMoreMenuOpen(false);
+                if (activeProject) {
+                  router.push(`/paper-studio/${activeProject.id}`);
+                }
+              }}
+            >
+              <Text style={styles.menuItemIcon}>📄</Text>
+              <Text style={styles.menuItemText}>Paper & Print Studio (Fullscreen)</Text>
             </Pressable>
 
             <Pressable

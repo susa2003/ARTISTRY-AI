@@ -269,6 +269,7 @@ const fileSystemMock = {
   makeDirectoryAsync: jest.fn(async () => {}),
   downloadAsync: jest.fn(async () => ({ uri: "file:///mock/downloaded.jpg" })),
   copyAsync: jest.fn(async () => {}),
+  EncodingType: { Base64: "base64", UTF8: "utf8" },
 };
 
 jest.mock("expo-file-system/legacy", () => fileSystemMock);

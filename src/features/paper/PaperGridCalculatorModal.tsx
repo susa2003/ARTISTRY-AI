@@ -24,7 +24,13 @@ import {
 import * as FileSystem from "expo-file-system/legacy";
 import * as Sharing from "expo-sharing";
 import type { PaperOrientation, PaperSize } from "../../domain/overlayTypes";
-import type { PaperGridCalculation, SpacingUnit } from "./types";
+import type {
+  ExportDpi,
+  ExportTemplateType,
+  GridAlignmentMode,
+  PaperGridCalculation,
+  SpacingUnit,
+} from "./types";
 import {
   GRID_SPACING_PRESETS,
   STANDARD_PAPER_DEFINITIONS,
@@ -35,6 +41,7 @@ import {
   mmToUnit,
   unitToMm,
 } from "./paperGridCalculator";
+import { buildCalibratedPdf } from "./pdf/PdfDocumentBuilder";
 import { PaperGridVisualPreview } from "./PaperGridVisualPreview";
 
 interface PaperGridCalculatorModalProps {
@@ -45,6 +52,10 @@ interface PaperGridCalculatorModalProps {
   initialCustomWidthMm?: number;
   initialCustomHeightMm?: number;
   initialSpacingMm?: number;
+  initialMarginTopMm?: number;
+  initialMarginBottomMm?: number;
+  initialMarginLeftMm?: number;
+  initialMarginRightMm?: number;
   onApplyGrid: (calculation: PaperGridCalculation) => void;
 }
 
@@ -56,6 +67,10 @@ export function PaperGridCalculatorModal({
   initialCustomWidthMm = 210,
   initialCustomHeightMm = 297,
   initialSpacingMm = 20,
+  initialMarginTopMm = 5,
+  initialMarginBottomMm = 5,
+  initialMarginLeftMm = 5,
+  initialMarginRightMm = 5,
   onApplyGrid,
 }: PaperGridCalculatorModalProps) {
   // State: Paper Selection
@@ -64,11 +79,28 @@ export function PaperGridCalculatorModal({
   const [customWidthText, setCustomWidthText] = useState(String(initialCustomWidthMm));
   const [customHeightText, setCustomHeightText] = useState(String(initialCustomHeightMm));
 
+  // State: Margins
+  const [marginTopText, setMarginTopText] = useState(String(initialMarginTopMm));
+  const [marginBottomText, setMarginBottomText] = useState(String(initialMarginBottomMm));
+  const [marginLeftText, setMarginLeftText] = useState(String(initialMarginLeftMm));
+  const [marginRightText, setMarginRightText] = useState(String(initialMarginRightMm));
+  const [marginsLinked, setMarginsLinked] = useState(true);
+  const [alignmentMode, setAlignmentMode] = useState<GridAlignmentMode>("centered");
+  const [fitInsideMargins, setFitInsideMargins] = useState(false);
+
   // State: Spacing & Units
   const [unit, setUnit] = useState<SpacingUnit>("mm");
   const [isLinked, setIsLinked] = useState(true); // Linked X & Y for square cells
   const [spacingXText, setSpacingXText] = useState(String(initialSpacingMm));
   const [spacingYText, setSpacingYText] = useState(String(initialSpacingMm));
+
+  // State: Export Options
+  const [exportFormat, setExportFormat] = useState<"pdf" | "html">("pdf");
+  const [templateType, setTemplateType] = useState<ExportTemplateType>("grid");
+  const [exportDpi, setExportDpi] = useState<ExportDpi>(300);
+  const [includeLabels, setIncludeLabels] = useState(true);
+  const [includeMargins, setIncludeMargins] = useState(true);
+  const [includeRulers, setIncludeRulers] = useState(true);
   const [exporting, setExporting] = useState(false);
 
   // Parse numeric values safely
@@ -84,6 +116,11 @@ export function PaperGridCalculatorModal({
   const spacingXMm = unitToMm(parsedSpacingX, unit);
   const spacingYMm = unitToMm(parsedSpacingY, unit);
 
+  const marginTopMm = unitToMm(Math.max(0, parseFloat(marginTopText) || 0), unit);
+  const marginBottomMm = unitToMm(Math.max(0, parseFloat(marginBottomText) || 0), unit);
+  const marginLeftMm = unitToMm(Math.max(0, parseFloat(marginLeftText) || 0), unit);
+  const marginRightMm = unitToMm(Math.max(0, parseFloat(marginRightText) || 0), unit);
+
   // Real-time calculation output
   const calculation = useMemo(() => {
     return calculatePaperGrid({
@@ -94,8 +131,30 @@ export function PaperGridCalculatorModal({
       customWidthMm,
       customHeightMm,
       selectedUnit: unit,
+      targetDpi: exportDpi,
+      marginTopMm,
+      marginBottomMm,
+      marginLeftMm,
+      marginRightMm,
+      alignmentMode,
+      fitInsideMargins,
     });
-  }, [paperSize, orientation, spacingXMm, spacingYMm, customWidthMm, customHeightMm, unit]);
+  }, [
+    paperSize,
+    orientation,
+    spacingXMm,
+    spacingYMm,
+    customWidthMm,
+    customHeightMm,
+    unit,
+    exportDpi,
+    marginTopMm,
+    marginBottomMm,
+    marginLeftMm,
+    marginRightMm,
+    alignmentMode,
+    fitInsideMargins,
+  ]);
 
   // Smart recommendations for current paper size
   const recommendations = useMemo(() => {
@@ -109,6 +168,21 @@ export function PaperGridCalculatorModal({
     setSpacingYText(String(converted));
   };
 
+  // Margin Handlers
+  const handleUpdateMargin = (field: "top" | "bottom" | "left" | "right", val: string) => {
+    if (marginsLinked) {
+      setMarginTopText(val);
+      setMarginBottomText(val);
+      setMarginLeftText(val);
+      setMarginRightText(val);
+    } else {
+      if (field === "top") setMarginTopText(val);
+      if (field === "bottom") setMarginBottomText(val);
+      if (field === "left") setMarginLeftText(val);
+      if (field === "right") setMarginRightText(val);
+    }
+  };
+
   // Unit change handler (converts current displayed numbers to new unit)
   const handleChangeUnit = (newUnit: SpacingUnit) => {
     if (newUnit === unit) return;
@@ -117,6 +191,12 @@ export function PaperGridCalculatorModal({
     setUnit(newUnit);
     setSpacingXText(String(mmToUnit(currentMmX, newUnit)));
     setSpacingYText(String(mmToUnit(currentMmY, newUnit)));
+
+    const curTopMm = unitToMm(parseFloat(marginTopText) || 5, unit);
+    setMarginTopText(String(mmToUnit(curTopMm, newUnit)));
+    setMarginBottomText(String(mmToUnit(curTopMm, newUnit)));
+    setMarginLeftText(String(mmToUnit(curTopMm, newUnit)));
+    setMarginRightText(String(mmToUnit(curTopMm, newUnit)));
   };
 
   const handleApply = () => {
@@ -124,30 +204,56 @@ export function PaperGridCalculatorModal({
     onClose();
   };
 
-  // Export printable SVG / HTML via expo-sharing
-  const handleExportPrintable = async () => {
+  // Export Document (PDF or HTML) via expo-sharing
+  const handleExportDocument = async () => {
     setExporting(true);
     try {
-      const htmlContent = generatePrintableHtml(calculation);
-      const filename = `ARTISTRY_Grid_${calculation.paperSize}_${calculation.columns}x${calculation.rows}_${calculation.spacingXMm}mm.html`;
-      const fileUri = `${FileSystem.cacheDirectory}${filename}`;
-
-      await FileSystem.writeAsStringAsync(fileUri, htmlContent, {
-        encoding: FileSystem.EncodingType.UTF8,
-      });
-
-      const isAvailable = await Sharing.isAvailableAsync();
-      if (isAvailable) {
-        await Sharing.shareAsync(fileUri, {
-          mimeType: "text/html",
-          dialogTitle: "Print Physical Drawing Grid",
-          UTI: "public.html",
+      if (exportFormat === "pdf") {
+        const result = buildCalibratedPdf({
+          calculation,
+          settings: {
+            templateType,
+            dpi: exportDpi,
+            includeLabels,
+            includeMargins,
+            includeRulers,
+            color: "#28594B",
+          },
+          projectTitle: "ARTISTRY AI — Physical Drawing Template",
         });
+
+        const { uri } = await result.saveToFileAsync();
+
+        if (await Sharing.isAvailableAsync()) {
+          await Sharing.shareAsync(uri, {
+            mimeType: "application/pdf",
+            dialogTitle: "Print Physical Drawing Grid",
+            UTI: "com.adobe.pdf",
+          });
+        } else {
+          Alert.alert("PDF Export Ready", `Generated calibrated PDF (${result.byteLength} bytes) at:\n${uri}`);
+        }
       } else {
-        Alert.alert("Print Template Ready", `Generated HTML printable sheet at:\n${fileUri}`);
+        const htmlContent = generatePrintableHtml(calculation);
+        const filename = `ARTISTRY_Grid_${calculation.paperSize}_${calculation.columns}x${calculation.rows}_${calculation.spacingXMm}mm.html`;
+        const fileUri = `${FileSystem.cacheDirectory}${filename}`;
+
+        await FileSystem.writeAsStringAsync(fileUri, htmlContent, {
+          encoding: FileSystem.EncodingType.UTF8,
+        });
+
+        if (await Sharing.isAvailableAsync()) {
+          await Sharing.shareAsync(fileUri, {
+            mimeType: "text/html",
+            dialogTitle: "Print Physical Drawing Grid",
+            UTI: "public.html",
+          });
+        } else {
+          Alert.alert("Print Template Ready", `Generated HTML printable sheet at:\n${fileUri}`);
+        }
       }
     } catch (err) {
-      Alert.alert("Export Failed", err instanceof Error ? err.message : "Could not export printable grid.");
+      Alert.alert("Export Failed", err instanceof Error ? err.message : "Could not export document.");
     } finally {
       setExporting(false);
     }
@@ -221,7 +327,7 @@ export function PaperGridCalculatorModal({
 
               {/* Standard Paper Tabs */}
               <View style={styles.paperTabs}>
-                {(["A4", "A3", "A5", "US_LETTER", "CUSTOM"] as const).map((s) => {
+                {(["A4", "A3", "A5", "A6", "US_LETTER", "CUSTOM"] as const).map((s) => {
                   const isSelected = paperSize === s;
                   const label =
                     s === "US_LETTER"
@@ -278,10 +384,98 @@ export function PaperGridCalculatorModal({
               )}
             </View>
 
-            {/* 2. SMART GRID SPACING & UNITS */}
+            {/* 2. MARGINS & PRINTABLE AREA */}
             <View style={styles.section}>
               <View style={styles.sectionHeaderRow}>
-                <Text style={styles.sectionTitle}>2. Grid Line Spacing</Text>
+                <View>
+                  <Text style={styles.sectionTitle}>2. Margins & Printable Safe Area</Text>
+                  <Text style={styles.sectionHint}>
+                    Printable: {calculation.printableWidthMm} × {calculation.printableHeightMm} mm
+                  </Text>
+                </View>
+
+                <Pressable
+                  onPress={() => setMarginsLinked(!marginsLinked)}
+                  style={[styles.linkToggleBtn, marginsLinked && styles.linkToggleBtnActive]}
+                >
+                  <Text style={styles.linkToggleText}>{marginsLinked ? "🔗 Margins Linked" : "🔓 Independent"}</Text>
+                </Pressable>
+              </View>
+
+              <View style={styles.marginsGridRow}>
+                <View style={styles.marginInputGroup}>
+                  <Text style={styles.marginFieldLabel}>Top ({unit})</Text>
+                  <TextInput
+                    style={styles.marginNumericInput}
+                    value={marginTopText}
+                    onChangeText={(t) => handleUpdateMargin("top", t)}
+                    keyboardType="numeric"
+                  />
+                </View>
+                <View style={styles.marginInputGroup}>
+                  <Text style={styles.marginFieldLabel}>Bottom ({unit})</Text>
+                  <TextInput
+                    style={styles.marginNumericInput}
+                    value={marginBottomText}
+                    onChangeText={(t) => handleUpdateMargin("bottom", t)}
+                    keyboardType="numeric"
+                  />
+                </View>
+                <View style={styles.marginInputGroup}>
+                  <Text style={styles.marginFieldLabel}>Left ({unit})</Text>
+                  <TextInput
+                    style={styles.marginNumericInput}
+                    value={marginLeftText}
+                    onChangeText={(t) => handleUpdateMargin("left", t)}
+                    keyboardType="numeric"
+                  />
+                </View>
+                <View style={styles.marginInputGroup}>
+                  <Text style={styles.marginFieldLabel}>Right ({unit})</Text>
+                  <TextInput
+                    style={styles.marginNumericInput}
+                    value={marginRightText}
+                    onChangeText={(t) => handleUpdateMargin("right", t)}
+                    keyboardType="numeric"
+                  />
+                </View>
+              </View>
+
+              <View style={styles.alignmentOptionsRow}>
+                <View style={styles.unitSelector}>
+                  <Pressable
+                    onPress={() => setAlignmentMode("centered")}
+                    style={[styles.unitBtn, alignmentMode === "centered" && styles.unitBtnActive]}
+                  >
+                    <Text style={[styles.unitBtnText, alignmentMode === "centered" && styles.unitBtnTextActive]}>
+                      Centered
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => setAlignmentMode("top-left")}
+                    style={[styles.unitBtn, alignmentMode === "top-left" && styles.unitBtnActive]}
+                  >
+                    <Text style={[styles.unitBtnText, alignmentMode === "top-left" && styles.unitBtnTextActive]}>
+                      Top-Left
+                    </Text>
+                  </Pressable>
+                </View>
+
+                <Pressable
+                  onPress={() => setFitInsideMargins(!fitInsideMargins)}
+                  style={[styles.fitToggleBtn, fitInsideMargins && styles.fitToggleBtnActive]}
+                >
+                  <Text style={[styles.fitToggleBtnText, fitInsideMargins && styles.fitToggleBtnTextActive]}>
+                    {fitInsideMargins ? "✓ Fit Inside Margins" : "Full Paper Sheet"}
+                  </Text>
+                </Pressable>
+              </View>
+            </View>
+
+            {/* 3. SMART GRID SPACING & UNITS */}
+            <View style={styles.section}>
+              <View style={styles.sectionHeaderRow}>
+                <Text style={styles.sectionTitle}>3. Grid Line Spacing</Text>
                 {/* Unit Switcher */}
                 <View style={styles.unitSelector}>
                   {(["mm", "cm", "in"] as const).map((u) => (
@@ -420,9 +614,9 @@ export function PaperGridCalculatorModal({
               </View>
             </View>
 
-            {/* 3. SMART RECOMMENDATIONS */}
+            {/* 4. SMART RECOMMENDATIONS */}
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>3. Smart Spacing Recommendations</Text>
+              <Text style={styles.sectionTitle}>4. Smart Spacing Recommendations</Text>
               <Text style={styles.sectionHint}>
                 Optimal grid spacing calibrated specifically for {calculation.paperSize} {calculation.orientation}:
               </Text>
@@ -460,7 +654,7 @@ export function PaperGridCalculatorModal({
               </View>
             </View>
 
-            {/* 4. CALCULATION RESULTS SUMMARY */}
+            {/* 5. CALCULATION RESULTS SUMMARY */}
             <View style={styles.summaryCard}>
               <View style={styles.summaryRow}>
                 <View style={styles.summaryCol}>
@@ -491,31 +685,128 @@ export function PaperGridCalculatorModal({
                   • Total Grid Area: {calculation.totalGridWidthMm} × {calculation.totalGridHeightMm} mm
                 </Text>
                 <Text style={styles.summaryDetailText}>
-                  • Centered Margins: Left/Right ±{calculation.marginXMm} mm · Top/Bottom ±{calculation.marginYMm} mm
+                  • Active Grid Offsets: Left/Right ±{calculation.marginXMm} mm · Top/Bottom ±{calculation.marginYMm} mm
                 </Text>
                 <Text style={styles.summaryDetailText}>
-                  • 300 DPI Canvas Resolution: {calculation.pixelWidth300Dpi} × {calculation.pixelHeight300Dpi} px
+                  • PDF MediaBox: {calculation.pageWidthPt} × {calculation.pageHeightPt} pt ({calculation.targetDpi} DPI: {calculation.pixelWidth} × {calculation.pixelHeight} px)
                 </Text>
               </View>
             </View>
 
-            {/* 5. VISUAL PAPER GRID PREVIEW */}
+            {/* 6. VISUAL PAPER GRID PREVIEW */}
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>5. Live Physical Paper Preview</Text>
+              <Text style={styles.sectionTitle}>6. Live Physical Paper Preview</Text>
               <PaperGridVisualPreview calculation={calculation} previewHeight={270} />
+            </View>
+
+            {/* 7. PRINT-READY EXPORT OPTIONS */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>7. Print-Ready PDF & Sheet Export</Text>
+              <Text style={styles.sectionHint}>
+                Genuine ISO 32000-1 binary PDF export with exact physical PostScript dimensions.
+              </Text>
+
+              {/* Format Selection */}
+              <View style={[styles.unitSelector, { marginTop: 10 }]}>
+                <Pressable
+                  onPress={() => setExportFormat("pdf")}
+                  style={[styles.unitBtn, exportFormat === "pdf" && styles.unitBtnActive]}
+                >
+                  <Text style={[styles.unitBtnText, exportFormat === "pdf" && styles.unitBtnTextActive]}>
+                    📄 PDF (ISO 32000-1)
+                  </Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => setExportFormat("html")}
+                  style={[styles.unitBtn, exportFormat === "html" && styles.unitBtnActive]}
+                >
+                  <Text style={[styles.unitBtnText, exportFormat === "html" && styles.unitBtnTextActive]}>
+                    🌐 HTML (@page)
+                  </Text>
+                </Pressable>
+              </View>
+
+              {/* Template Mode */}
+              <Text style={[styles.marginFieldLabel, { marginTop: 12 }]}>Template Type:</Text>
+              <View style={styles.unitSelector}>
+                {(["grid", "blank", "reference-overlays"] as const).map((t) => (
+                  <Pressable
+                    key={t}
+                    onPress={() => setTemplateType(t)}
+                    style={[styles.unitBtn, templateType === t && styles.unitBtnActive]}
+                  >
+                    <Text style={[styles.unitBtnText, templateType === t && styles.unitBtnTextActive]}>
+                      {t === "grid" ? "Grid" : t === "blank" ? "Blank Paper" : "Photo+Grid"}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+
+              {/* DPI Selection */}
+              <Text style={[styles.marginFieldLabel, { marginTop: 12 }]}>Print Resolution (DPI):</Text>
+              <View style={styles.unitSelector}>
+                {([150, 200, 300, 600] as const).map((d) => (
+                  <Pressable
+                    key={d}
+                    onPress={() => setExportDpi(d)}
+                    style={[styles.unitBtn, exportDpi === d && styles.unitBtnActive]}
+                  >
+                    <Text style={[styles.unitBtnText, exportDpi === d && styles.unitBtnTextActive]}>
+                      {d} DPI
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+
+              {/* Toggle Options */}
+              <View style={styles.optionsGrid}>
+                <Pressable
+                  onPress={() => setIncludeLabels(!includeLabels)}
+                  style={[styles.optionPill, includeLabels && styles.optionPillActive]}
+                >
+                  <Text style={[styles.optionPillText, includeLabels && styles.optionPillTextActive]}>
+                    {includeLabels ? "✓ Labels (A-Z, 1-N)" : "No Labels"}
+                  </Text>
+                </Pressable>
+
+                <Pressable
+                  onPress={() => setIncludeMargins(!includeMargins)}
+                  style={[styles.optionPill, includeMargins && styles.optionPillActive]}
+                >
+                  <Text style={[styles.optionPillText, includeMargins && styles.optionPillTextActive]}>
+                    {includeMargins ? "✓ Margin Bounds" : "No Margin"}
+                  </Text>
+                </Pressable>
+
+                <Pressable
+                  onPress={() => setIncludeRulers(!includeRulers)}
+                  style={[styles.optionPill, includeRulers && styles.optionPillActive]}
+                >
+                  <Text style={[styles.optionPillText, includeRulers && styles.optionPillTextActive]}>
+                    {includeRulers ? "✓ Metric Rulers" : "No Rulers"}
+                  </Text>
+                </Pressable>
+              </View>
+
+              {/* Physical Print Advisory Warning */}
+              <View style={styles.modalAdvisoryCard}>
+                <Text style={styles.modalAdvisoryText}>
+                  ⚠️ IMPORTANT PHYSICAL ACCURACY: Always choose "100%" or "Actual Size" in printer settings. Do NOT select "Fit to Page" or scale to page.
+                </Text>
+              </View>
             </View>
           </ScrollView>
 
           {/* Footer Action Bar */}
           <View style={styles.footer}>
             <Pressable
-              onPress={handleExportPrintable}
+              onPress={handleExportDocument}
               disabled={exporting}
               style={({ pressed }) => [styles.exportBtn, pressed && styles.pressed]}
-              accessibilityLabel="Export Printable Template"
+              accessibilityLabel="Export Document"
             >
               <Text style={styles.exportBtnText}>
-                {exporting ? "Generating..." : "📄 Export Printable Sheet"}
+                {exporting ? "Compiling..." : `📥 Export ${exportFormat.toUpperCase()}`}
               </Text>
             </Pressable>
 
@@ -956,6 +1247,99 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "700",
     color: "#A8BEB1",
+  },
+  marginsGridRow: {
+    flexDirection: "row",
+    gap: 8,
+    marginTop: 8,
+    marginBottom: 10,
+  },
+  marginInputGroup: {
+    flex: 1,
+  },
+  marginFieldLabel: {
+    fontSize: 11,
+    color: "#8FA396",
+    fontWeight: "600",
+    marginBottom: 4,
+  },
+  marginNumericInput: {
+    backgroundColor: "#121714",
+    borderWidth: 1,
+    borderColor: "#2F4036",
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    color: "#F6F5EE",
+    fontSize: 13,
+    fontWeight: "700",
+    textAlign: "center",
+  },
+  alignmentOptionsRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: 6,
+  },
+  fitToggleBtn: {
+    backgroundColor: "#1A221E",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: "#28392F",
+  },
+  fitToggleBtnActive: {
+    backgroundColor: "#223B2F",
+    borderColor: "#4EA87D",
+  },
+  fitToggleBtnText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#8FA396",
+  },
+  fitToggleBtnTextActive: {
+    color: "#FFFFFF",
+  },
+  optionsGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginTop: 12,
+  },
+  optionPill: {
+    backgroundColor: "#18221C",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: "#26352C",
+  },
+  optionPillActive: {
+    backgroundColor: "#203B2D",
+    borderColor: "#4EA87D",
+  },
+  optionPillText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#8FA396",
+  },
+  optionPillTextActive: {
+    color: "#FFFFFF",
+  },
+  modalAdvisoryCard: {
+    backgroundColor: "#2A2117",
+    borderRadius: 8,
+    padding: 10,
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: "#553F26",
+  },
+  modalAdvisoryText: {
+    fontSize: 11,
+    color: "#E5BE94",
+    fontWeight: "600",
+    lineHeight: 16,
   },
   applyBtn: {
     flex: 1.4,

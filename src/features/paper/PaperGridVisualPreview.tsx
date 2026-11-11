@@ -118,10 +118,27 @@ export function PaperGridVisualPreview({
               y={0}
               width={paperWidthMm}
               height={paperHeightMm}
-              fill="rgba(215, 120, 80, 0.06)"
+              fill="rgba(215, 120, 80, 0.05)"
               stroke="#CB7857"
               strokeWidth={0.4}
               strokeDasharray="2,2"
+            />
+          )}
+
+          {/* Printable Safe Area Boundary (Dashed Line) */}
+          {(calculation.marginTopMm > 0 ||
+            calculation.marginLeftMm > 0 ||
+            calculation.marginRightMm > 0 ||
+            calculation.marginBottomMm > 0) && (
+            <Rect
+              x={calculation.marginLeftMm}
+              y={calculation.marginTopMm}
+              width={calculation.printableWidthMm}
+              height={calculation.printableHeightMm}
+              fill="none"
+              stroke="#68776E"
+              strokeWidth={0.5}
+              strokeDasharray="1.5,1.5"
             />
           )}
 
@@ -222,6 +239,13 @@ export function PaperGridVisualPreview({
         </View>
 
         <View style={styles.footnoteBadge}>
+          <Text style={styles.footnoteLabel}>Printable Area:</Text>
+          <Text style={styles.footnoteValue}>
+            {calculation.printableWidthMm}×{calculation.printableHeightMm}mm (Margins: T:{calculation.marginTopMm} B:{calculation.marginBottomMm} L:{calculation.marginLeftMm} R:{calculation.marginRightMm})
+          </Text>
+        </View>
+
+        <View style={styles.footnoteBadge}>
           <Text style={styles.footnoteLabel}>Active Grid:</Text>
           <Text style={styles.footnoteValueMoss}>
             {columns} cols × {rows} rows ({totalGridWidthMm}×{totalGridHeightMm}mm)
@@ -232,6 +256,13 @@ export function PaperGridVisualPreview({
           <Text style={styles.footnoteLabel}>Remainder Margins:</Text>
           <Text style={styles.footnoteValueClay}>
             X: {remainderXMm}mm (±{marginXMm}mm) · Y: {remainderYMm}mm (±{marginYMm}mm)
+          </Text>
+        </View>
+
+        <View style={styles.footnoteBadge}>
+          <Text style={styles.footnoteLabel}>Physical Scale:</Text>
+          <Text style={styles.footnoteValue}>
+            {calculation.pageWidthPt}×{calculation.pageHeightPt} pt ({calculation.targetDpi} DPI: {calculation.pixelWidth}×{calculation.pixelHeight} px)
           </Text>
         </View>
       </View>

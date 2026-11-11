@@ -11,6 +11,8 @@
 
 import type { PaperOrientation, PaperSize } from "../../domain/overlayTypes";
 import type {
+  ExportDpi,
+  GridAlignmentMode,
   GridRecommendation,
   GridSpacingPreset,
   PaperDimensions,
@@ -19,12 +21,14 @@ import type {
 } from "./types";
 
 export const MM_PER_INCH = 25.4;
-export const STANDARD_DPI = 300;
+export const STANDARD_DPI: ExportDpi = 300;
+export const PT_PER_MM = 72 / 25.4; // 1 mm = 2.83464567 PostScript points
 
 export const STANDARD_PAPER_DEFINITIONS: Record<Exclude<PaperSize, "CUSTOM">, PaperDimensions> = {
   A3: { widthMm: 297, heightMm: 420 },
   A4: { widthMm: 210, heightMm: 297 },
   A5: { widthMm: 148, heightMm: 210 },
+  A6: { widthMm: 105, heightMm: 148 },
   US_LETTER: { widthMm: 215.9, heightMm: 279.4 },
 };
 
@@ -116,7 +120,16 @@ export interface CalculatePaperGridParams {
   customWidthMm?: number;
   customHeightMm?: number;
   selectedUnit?: SpacingUnit;
-  targetDpi?: number;
+  targetDpi?: ExportDpi;
+
+  // Independent Margins & Placement (Phase 6 Tasks 1-2)
+  marginTopMm?: number;
+  marginBottomMm?: number;
+  marginLeftMm?: number;
+  marginRightMm?: number;
+  marginMm?: number;
+  alignmentMode?: GridAlignmentMode;
+  fitInsideMargins?: boolean;
 }
 
 /**
@@ -132,6 +145,13 @@ export function calculatePaperGrid(params: CalculatePaperGridParams): PaperGridC
     customHeightMm,
     selectedUnit = "mm",
     targetDpi = STANDARD_DPI,
+    marginTopMm,
+    marginBottomMm,
+    marginLeftMm,
+    marginRightMm,
+    marginMm,
+    alignmentMode = "centered",
+    fitInsideMargins = false,
   } = params;
 
   // 1. Resolve Paper Dimensions
@@ -144,28 +164,78 @@ export function calculatePaperGrid(params: CalculatePaperGridParams): PaperGridC
   const safeSpacingY = Math.max(1, Math.min(paperHeightMm, spacingYMm ?? safeSpacingX));
   const isSquare = Math.abs(safeSpacingX - safeSpacingY) < 0.001;
 
-  // 3. Calculate Columns and Rows (Floor calculation per specification)
-  const columns = Math.max(1, Math.floor(paperWidthMm / safeSpacingX));
-  const rows = Math.max(1, Math.floor(paperHeightMm / safeSpacingY));
+  // 3. Resolve Independent Margins & Printable Area
+  const safeTop = Math.max(0, marginTopMm ?? marginMm ?? 0);
+  const safeBottom = Math.max(0, marginBottomMm ?? marginMm ?? 0);
+  const safeLeft = Math.max(0, marginLeftMm ?? marginMm ?? 0);
+  const safeRight = Math.max(0, marginRightMm ?? marginMm ?? 0);
+
+  const printableWidthMm = Math.max(10, Math.round((paperWidthMm - safeLeft - safeRight) * 100) / 100);
+  const printableHeightMm = Math.max(10, Math.round((paperHeightMm - safeTop - safeBottom) * 100) / 100);
+
+  // 4. Calculate Columns and Rows (Floor calculation per specification)
+  const calcBaseW = fitInsideMargins ? printableWidthMm : paperWidthMm;
+  const calcBaseH = fitInsideMargins ? printableHeightMm : paperHeightMm;
+
+  const columns = Math.max(1, Math.floor(calcBaseW / safeSpacingX));
+  const rows = Math.max(1, Math.floor(calcBaseH / safeSpacingY));
   const totalCells = columns * rows;
 
-  // 4. Calculate Total Grid Dimensions & Remainders
+  // 5. Calculate Total Grid Dimensions & Remainders
   const totalGridWidthMm = Math.round(columns * safeSpacingX * 100) / 100;
   const totalGridHeightMm = Math.round(rows * safeSpacingY * 100) / 100;
 
-  const remainderXMm = Math.round(Math.max(0, paperWidthMm - totalGridWidthMm) * 100) / 100;
-  const remainderYMm = Math.round(Math.max(0, paperHeightMm - totalGridHeightMm) * 100) / 100;
+  const remainderXMm = Math.round(Math.max(0, calcBaseW - totalGridWidthMm) * 100) / 100;
+  const remainderYMm = Math.round(Math.max(0, calcBaseH - totalGridHeightMm) * 100) / 100;
 
-  // 5. Symmetric Margins (centered grid)
-  const marginXMm = Math.round((remainderXMm / 2) * 100) / 100;
-  const marginYMm = Math.round((remainderYMm / 2) * 100) / 100;
+  // 6. Placement & Active Grid Offsets
+  let gridOffsetX: number;
+  let gridOffsetY: number;
 
-  // 6. 300 DPI Print Calibration
+  if (fitInsideMargins) {
+    if (alignmentMode === "top-left") {
+      gridOffsetX = safeLeft;
+      gridOffsetY = safeTop;
+    } else {
+      // centered inside printable area
+      gridOffsetX = Math.round((safeLeft + remainderXMm / 2) * 100) / 100;
+      gridOffsetY = Math.round((safeTop + remainderYMm / 2) * 100) / 100;
+    }
+  } else {
+    if (alignmentMode === "top-left") {
+      gridOffsetX = safeLeft;
+      gridOffsetY = safeTop;
+    } else {
+      // centered across paper sheet
+      gridOffsetX = Math.round((remainderXMm / 2) * 100) / 100;
+      gridOffsetY = Math.round((remainderYMm / 2) * 100) / 100;
+    }
+  }
+
+  const marginXMm = gridOffsetX;
+  const marginYMm = gridOffsetY;
+
+  // 7. Physical PDF & Print Points (72 PostScript points / inch)
+  const pageWidthPt = Math.round(paperWidthMm * PT_PER_MM * 100) / 100;
+  const pageHeightPt = Math.round(paperHeightMm * PT_PER_MM * 100) / 100;
+  const printableWidthPt = Math.round(printableWidthMm * PT_PER_MM * 100) / 100;
+  const printableHeightPt = Math.round(printableHeightMm * PT_PER_MM * 100) / 100;
+  const cellWidthPt = Math.round(safeSpacingX * PT_PER_MM * 100) / 100;
+  const cellHeightPt = Math.round(safeSpacingY * PT_PER_MM * 100) / 100;
+
+  // 8. Target DPI Print Calibration
   const pxPerMm = targetDpi / MM_PER_INCH;
-  const pixelWidth300Dpi = Math.round(paperWidthMm * pxPerMm);
-  const pixelHeight300Dpi = Math.round(paperHeightMm * pxPerMm);
-  const cellWidthPx300Dpi = Math.round(safeSpacingX * pxPerMm);
-  const cellHeightPx300Dpi = Math.round(safeSpacingY * pxPerMm);
+  const pixelWidth = Math.round(paperWidthMm * pxPerMm);
+  const pixelHeight = Math.round(paperHeightMm * pxPerMm);
+  const cellWidthPx = Math.round(safeSpacingX * pxPerMm);
+  const cellHeightPx = Math.round(safeSpacingY * pxPerMm);
+
+  // Legacy 300 DPI compatibility fields
+  const pxPerMm300 = STANDARD_DPI / MM_PER_INCH;
+  const pixelWidth300Dpi = Math.round(paperWidthMm * pxPerMm300);
+  const pixelHeight300Dpi = Math.round(paperHeightMm * pxPerMm300);
+  const cellWidthPx300Dpi = Math.round(safeSpacingX * pxPerMm300);
+  const cellHeightPx300Dpi = Math.round(safeSpacingY * pxPerMm300);
 
   return {
     paperSize,
@@ -176,6 +246,15 @@ export function calculatePaperGrid(params: CalculatePaperGridParams): PaperGridC
     spacingYMm: safeSpacingY,
     isSquare,
     selectedUnit,
+
+    marginTopMm: safeTop,
+    marginBottomMm: safeBottom,
+    marginLeftMm: safeLeft,
+    marginRightMm: safeRight,
+    printableWidthMm,
+    printableHeightMm,
+    alignmentMode,
+
     columns,
     rows,
     totalCells,
@@ -183,11 +262,27 @@ export function calculatePaperGrid(params: CalculatePaperGridParams): PaperGridC
     cellHeightMm: safeSpacingY,
     totalGridWidthMm,
     totalGridHeightMm,
+
     remainderXMm,
     remainderYMm,
+    gridOffsetX,
+    gridOffsetY,
     marginXMm,
     marginYMm,
+
+    pageWidthPt,
+    pageHeightPt,
+    printableWidthPt,
+    printableHeightPt,
+    cellWidthPt,
+    cellHeightPt,
+
     targetDpi,
+    pixelWidth,
+    pixelHeight,
+    cellWidthPx,
+    cellHeightPx,
+
     pixelWidth300Dpi,
     pixelHeight300Dpi,
     cellWidthPx300Dpi,
