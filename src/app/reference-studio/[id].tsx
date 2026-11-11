@@ -14,6 +14,9 @@ import { ReferenceCanvas } from "../../features/workstation/ReferenceCanvas";
 import { LayerDrawer } from "../../features/workstation/LayerDrawer";
 import { ImageAdjustmentPanel } from "../../features/workstation/ImageAdjustmentPanel";
 import { CropRotateModal } from "../../features/workstation/CropRotateModal";
+import { BeginnerCoachStrip } from "../../features/modes/BeginnerCoachStrip";
+import { ProfessionalControlPanel } from "../../features/modes/ProfessionalControlPanel";
+import { ModeSelectorModal } from "../../features/modes/ModeSelectorModal";
 import { chooseImageFromDocuments, choosePhotoFromSystemPicker } from "../../features/images/pickImage";
 import { useAppStore } from "../../state/appStore";
 import * as database from "../../storage/database";
@@ -44,7 +47,9 @@ export default function ReferenceStudioScreen() {
   const setOverlayOpacity = useAppStore((state) => state.setOverlayOpacity);
   const toggleOverlayLock = useAppStore((state) => state.toggleOverlayLock);
   const addOverlay = useAppStore((state) => state.addOverlay);
+  const updateOverlay = useAppStore((state) => state.updateOverlay);
   const removeOverlay = useAppStore((state) => state.removeOverlay);
+  const experienceMode = useAppStore((state) => state.experienceMode);
   const setPaperSettings = useAppStore((state) => state.setPaperSettings);
   const setImageAdjustments = useAppStore((state) => state.setImageAdjustments);
   const resetImageAdjustments = useAppStore((state) => state.resetImageAdjustments);
@@ -56,6 +61,8 @@ export default function ReferenceStudioScreen() {
   const [layerDrawerOpen, setLayerDrawerOpen] = useState(false);
   const [adjustmentPanelOpen, setAdjustmentPanelOpen] = useState(false);
   const [cropModalOpen, setCropModalOpen] = useState(false);
+  const [proControlPanelOpen, setProControlPanelOpen] = useState(false);
+  const [modeModalOpen, setModeModalOpen] = useState(false);
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [paperPickerOpen, setPaperPickerOpen] = useState(false);
   const [activeBottomTab, setActiveBottomTab] = useState<string>("layers");
@@ -201,6 +208,22 @@ export default function ReferenceStudioScreen() {
     addOverlay(newOverlay);
   };
 
+  const handleUpdateOverlay = (updatedOverlay: UnifiedOverlay) => {
+    updateOverlay(updatedOverlay);
+    if (activeProject) {
+      const exists = overlays.some((o) => o.id === updatedOverlay.id);
+      const nextOverlays = exists
+        ? overlays.map((o) => (o.id === updatedOverlay.id ? updatedOverlay : o))
+        : [...overlays, updatedOverlay];
+      const updated = {
+        ...activeProject,
+        overlays: nextOverlays,
+        updatedAt: Date.now(),
+      };
+      void database.saveProject(updated);
+    }
+  };
+
   const handleSelectPaperSize = (size: PaperSize) => {
     if (size === "CUSTOM") return;
     const dims = STANDARD_PAPER_SIZES[size];
@@ -298,6 +321,16 @@ export default function ReferenceStudioScreen() {
 
         {/* Action icons */}
         <View style={styles.topActions}>
+          {experienceMode === "professional" ? (
+            <Pressable
+              onPress={() => setProControlPanelOpen(true)}
+              style={({ pressed }) => [styles.proDialsBtn, pressed && styles.btnPressed]}
+              accessibilityLabel="Open Pro Telemetry & Dials"
+            >
+              <Text style={styles.proDialsBtnText}>⚡ Dials</Text>
+            </Pressable>
+          ) : null}
+
           <Pressable
             onPress={() => setAdjustmentPanelOpen(true)}
             style={({ pressed }) => [styles.toolbarBtn, pressed && styles.btnPressed]}
@@ -346,6 +379,16 @@ export default function ReferenceStudioScreen() {
         </View>
 
         <Pressable
+          onPress={() => setModeModalOpen(true)}
+          style={[styles.modeHudBadge, experienceMode === "professional" && styles.modeHudBadgePro]}
+          accessibilityLabel="Switch Experience Mode"
+        >
+          <Text style={[styles.modeHudBadgeText, experienceMode === "professional" && styles.modeHudBadgeTextPro]}>
+            {experienceMode === "beginner" ? "🌱 Beginner" : "⚡ Pro"}
+          </Text>
+        </Pressable>
+
+        <Pressable
           onPress={() => setPaperPickerOpen(true)}
           style={styles.paperBadge}
         >
@@ -358,6 +401,16 @@ export default function ReferenceStudioScreen() {
           <Text style={styles.offlineBadgeText}>🔒 Offline</Text>
         </View>
       </View>
+
+      {/* BEGINNER COACH STRIP (Beginner Mode Only) */}
+      {experienceMode === "beginner" ? (
+        <BeginnerCoachStrip
+          activeOverlays={overlays}
+          onAddOverlay={handleAddDefaultOverlay}
+          onOpenAdjustments={() => setAdjustmentPanelOpen(true)}
+          onOpenHelp={(topic) => Alert.alert("Drawing Coach", topic)}
+        />
+      ) : null}
 
       {/* CENTRAL WORKSPACE CANVAS */}
       <View style={styles.canvasContainer}>
@@ -481,6 +534,21 @@ export default function ReferenceStudioScreen() {
             </Pressable>
 
             <Pressable
+              style={styles.menuItem}
+              onPress={() => {
+                setMoreMenuOpen(false);
+                setModeModalOpen(true);
+              }}
+            >
+              <Text style={styles.menuItemIcon}>
+                {experienceMode === "beginner" ? "⚡" : "🌱"}
+              </Text>
+              <Text style={styles.menuItemText}>
+                {experienceMode === "beginner" ? "Switch to Professional Mode" : "Switch to Beginner Mode"}
+              </Text>
+            </Pressable>
+
+            <Pressable
               style={[styles.menuItem, styles.menuItemDanger]}
               onPress={() => {
                 setMoreMenuOpen(false);
@@ -554,6 +622,20 @@ export default function ReferenceStudioScreen() {
         currentCrop={activeProject.imageAdjustments?.crop ?? DEFAULT_IMAGE_ADJUSTMENTS.crop}
         currentRotation={activeProject.imageAdjustments?.rotation ?? 0}
         onApply={handleApplyCropAndRotate}
+      />
+
+      {/* PROFESSIONAL TELEMETRY & PARAMETRIC DIALS */}
+      <ProfessionalControlPanel
+        visible={proControlPanelOpen}
+        onClose={() => setProControlPanelOpen(false)}
+        overlays={overlays}
+        onUpdateOverlay={handleUpdateOverlay}
+      />
+
+      {/* MODE SELECTOR MODAL */}
+      <ModeSelectorModal
+        visible={modeModalOpen}
+        onClose={() => setModeModalOpen(false)}
       />
     </SafeAreaView>
   );
@@ -660,6 +742,19 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 6,
   },
+  proDialsBtn: {
+    backgroundColor: "#2B2117",
+    paddingHorizontal: 9,
+    paddingVertical: 7,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#4A3724",
+  },
+  proDialsBtnText: {
+    color: "#E2934D",
+    fontSize: 11,
+    fontWeight: "700",
+  },
   saveBtn: {
     backgroundColor: "#28594B",
     paddingHorizontal: 13,
@@ -701,6 +796,26 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#95A398",
     letterSpacing: 0.5,
+  },
+  modeHudBadge: {
+    backgroundColor: "#1C2A21",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: "#2B4433",
+  },
+  modeHudBadgePro: {
+    backgroundColor: "#2B2117",
+    borderColor: "#4A3724",
+  },
+  modeHudBadgeText: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: "#77D9A4",
+  },
+  modeHudBadgeTextPro: {
+    color: "#E2934D",
   },
   paperBadge: {
     backgroundColor: "#202722",

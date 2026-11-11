@@ -67,6 +67,7 @@ type AppStore = {
   setOverlayOpacity: (overlayId: string, opacity: number) => void;
   toggleOverlayLock: (overlayId: string) => void;
   addOverlay: (overlay: UnifiedOverlay) => void;
+  updateOverlay: (overlay: UnifiedOverlay) => void;
   removeOverlay: (overlayId: string) => void;
   setPaperSettings: (paper: PaperSettings) => void;
   setImageAdjustments: (adjustments: ImageAdjustmentSettings) => void;
@@ -85,9 +86,12 @@ type AppStore = {
   setActiveBrush: (brush: "brush" | "pencil" | "pen" | "eraser") => void;
   clearActiveLayer: () => void;
   lessonProgress: Record<string, boolean>;
+  activeLessonId: string | null;
+  setActiveLessonId: (id: string | null) => Promise<void>;
   streak: { current: number; longest: number; lastActiveDate: string | null };
   loadLearningProgress: () => Promise<void>;
   toggleLessonCompletion: (lessonId: string) => Promise<void>;
+  setLessonCompleted: (lessonId: string, completed: boolean) => Promise<void>;
   completeDailyChallenge: (title: string, projectId?: string) => Promise<number>;
 };
 
@@ -106,9 +110,10 @@ export const useAppStore = create<AppStore>((set, get) => ({
   language: "en",
   onboardingCompleted: false,
   lessonProgress: {},
+  activeLessonId: null,
   streak: { current: 0, longest: 0, lastActiveDate: null },
   hydrate: async () => {
-    const [projects, reference, lessons, streakData, mode, lang, onboardingDone] = await Promise.all([
+    const [projects, reference, lessons, streakData, mode, lang, onboardingDone, activeLesson] = await Promise.all([
       database.listProjects(),
       database.getActiveReference(),
       database.getLessonProgress(),
@@ -116,6 +121,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
       database.getExperienceMode(),
       database.getAppLanguage(),
       database.getOnboardingCompleted(),
+      database.getActiveLessonId(),
     ]);
     const progressMap: Record<string, boolean> = {};
     Object.keys(lessons).forEach((id) => {
@@ -129,6 +135,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
       language: lang,
       onboardingCompleted: onboardingDone,
       lessonProgress: progressMap,
+      activeLessonId: activeLesson,
       streak: {
         current: streakData.currentStreak,
         longest: streakData.longestStreak,
@@ -181,6 +188,18 @@ export const useAppStore = create<AppStore>((set, get) => ({
     set((state) => ({
       lessonProgress: { ...state.lessonProgress, [lessonId]: nextStatus },
     }));
+  },
+  setLessonCompleted: async (lessonId, completed) => {
+    await database.recordLessonProgress(lessonId, completed);
+    set((state) => ({
+      lessonProgress: { ...state.lessonProgress, [lessonId]: completed },
+    }));
+  },
+  setActiveLessonId: async (id) => {
+    if (id) {
+      await database.setActiveLessonId(id);
+    }
+    set({ activeLessonId: id });
   },
   completeDailyChallenge: async (title, projectId) => {
     const result = await database.recordChallengeCompletion(title, projectId);
@@ -373,6 +392,15 @@ export const useAppStore = create<AppStore>((set, get) => ({
     if (!project) return {};
     const existing = project.overlays ?? [];
     return { currentProject: { ...project, overlays: [...existing, overlay], updatedAt: Date.now() } };
+  }),
+  updateOverlay: (overlay) => set((state) => {
+    const project = state.currentProject;
+    if (!project || !project.overlays) return {};
+    const exists = project.overlays.some((o) => o.id === overlay.id);
+    const overlays = exists
+      ? project.overlays.map((o) => (o.id === overlay.id ? overlay : o))
+      : [...project.overlays, overlay];
+    return { currentProject: { ...project, overlays, updatedAt: Date.now() } };
   }),
   removeOverlay: (overlayId) => set((state) => {
     const project = state.currentProject;

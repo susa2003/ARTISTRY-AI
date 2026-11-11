@@ -394,6 +394,42 @@ export async function getLessonProgress(): Promise<Record<string, { completed: b
   return result;
 }
 
+export async function getActiveLessonId(): Promise<string | null> {
+  const db = await database();
+  const row = await db.getFirstAsync<{ value: string }>(
+    "SELECT value FROM app_metadata WHERE key = 'active_lesson_id'"
+  );
+  return row?.value ?? null;
+}
+
+export async function setActiveLessonId(lessonId: string): Promise<void> {
+  const db = await database();
+  await db.runAsync(
+    "INSERT INTO app_metadata (key, value) VALUES ('active_lesson_id', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+    lessonId
+  );
+}
+
+export async function getLessonStepProgress(lessonId: string): Promise<number> {
+  const db = await database();
+  const row = await db.getFirstAsync<{ value: string }>(
+    "SELECT value FROM app_metadata WHERE key = ?",
+    `lesson_step_${lessonId}`
+  );
+  if (!row) return 1;
+  const num = parseInt(row.value, 10);
+  return isNaN(num) || num < 1 ? 1 : num;
+}
+
+export async function saveLessonStepProgress(lessonId: string, step: number): Promise<void> {
+  const db = await database();
+  await db.runAsync(
+    "INSERT INTO app_metadata (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+    `lesson_step_${lessonId}`,
+    String(step)
+  );
+}
+
 export function formatDateString(date: Date = new Date()): string {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");

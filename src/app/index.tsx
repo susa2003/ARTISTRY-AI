@@ -5,6 +5,8 @@ import { AppHeader, Button, Eyebrow, InfoCard, Screen, SectionHeading } from "..
 import { FEATURES } from "../domain/features";
 import { chooseImageFromDocuments, choosePhotoFromSystemPicker } from "../features/images/pickImage";
 import { VoiceAssistantModal } from "../features/voice/VoiceAssistantModal";
+import { BeginnerDashboard } from "../features/modes/BeginnerDashboard";
+import { ModeSelectorModal } from "../features/modes/ModeSelectorModal";
 import { useTranslation } from "../i18n";
 import { useAppStore } from "../state/appStore";
 import { useAuthStore } from "../state/authStore";
@@ -29,6 +31,7 @@ export default function HomeScreen() {
   const user = useAuthStore((state) => state.user);
   const [busy, setBusy] = useState(false);
   const [voiceVisible, setVoiceVisible] = useState(false);
+  const [modeSelectorVisible, setModeSelectorVisible] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState<ToolCategoryFilter>("all");
 
   useEffect(() => {
@@ -81,7 +84,7 @@ export default function HomeScreen() {
               </Text>
             </Pressable>
             <Pressable
-              onPress={() => void setExperienceMode(experienceMode === "beginner" ? "professional" : "beginner")}
+              onPress={() => setModeSelectorVisible(true)}
               style={styles.tierToggle}
             >
               <Text style={styles.tierToggleText}>
@@ -104,8 +107,31 @@ export default function HomeScreen() {
         }
       />
 
-      {/* Hero Section */}
-      <View style={[styles.hero, isMobile && { flexDirection: "column", padding: 20 }]}>
+      {experienceMode === "beginner" ? (
+        <BeginnerDashboard onOpenModeSelector={() => setModeSelectorVisible(true)} />
+      ) : (
+        <>
+          {/* Professional Workstation Banner */}
+          <View style={styles.proModeBanner}>
+            <View style={styles.proModeTag}>
+              <Text style={styles.proModeIcon}>⚡</Text>
+              <Text style={styles.proModeText}>
+                {language === "ta" ? "தொழில்முறை கலைஞர் பணிநிலையம்" : "Professional Artist Workstation"}
+              </Text>
+            </View>
+            <Pressable
+              onPress={() => setModeSelectorVisible(true)}
+              style={styles.switchModePill}
+              accessibilityLabel="Switch experience mode"
+            >
+              <Text style={styles.switchModePillText}>
+                {language === "ta" ? "மாற்று ›" : "Switch Mode ›"}
+              </Text>
+            </Pressable>
+          </View>
+
+          {/* Hero Section */}
+          <View style={[styles.hero, isMobile && { flexDirection: "column", padding: 20 }]}>
         <View style={[styles.heroCopy, isMobile && { maxWidth: "100%" }]}>
           <Eyebrow>{language === "ta" ? "உங்கள் அமைதியான பயிற்சி இடம்" : "YOUR QUIET PLACE TO PRACTICE"}</Eyebrow>
           <Text style={[styles.headline, isMobile && { fontSize: 32, lineHeight: 36 }]}>
@@ -240,11 +266,18 @@ export default function HomeScreen() {
         })}
       </View>
       <View style={{ height: 28 }} />
+        </>
+      )}
 
       <VoiceAssistantModal
         visible={voiceVisible}
         onClose={() => setVoiceVisible(false)}
         currentScreen="home"
+      />
+
+      <ModeSelectorModal
+        visible={modeSelectorVisible}
+        onClose={() => setModeSelectorVisible(false)}
       />
     </Screen>
   );
@@ -262,6 +295,43 @@ const styles = StyleSheet.create({
   creditPillCount: { fontSize: 11, fontWeight: "700", color: colors.copper },
   profileButton: { width: 34, height: 34, borderRadius: 17, backgroundColor: colors.paper, borderWidth: 1, borderColor: colors.line, alignItems: "center", justifyContent: "center" },
   profileButtonText: { fontSize: 14, fontWeight: "700", color: colors.ink },
+  proModeBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#F0EBE1",
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#DDD4C4",
+    marginBottom: 16,
+  },
+  proModeTag: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  proModeIcon: {
+    fontSize: 16,
+    color: colors.clay,
+  },
+  proModeText: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: colors.ink,
+  },
+  switchModePill: {
+    backgroundColor: "#E2DBD0",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+  },
+  switchModePillText: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: colors.charcoal,
+  },
   hero: { minHeight: 300, flexDirection: "row", alignItems: "center", backgroundColor: "#ECEFE6", borderRadius: 28, padding: 25, overflow: "hidden" },
   heroCopy: { flex: 1, zIndex: 2, maxWidth: 620 },
   headline: { fontSize: 39, lineHeight: 43, color: colors.ink, fontFamily: "Georgia", letterSpacing: -0.9 },
