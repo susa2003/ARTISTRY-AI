@@ -113,6 +113,12 @@ export interface GridOverlayConfig extends BaseOverlayConfig {
   cellMode: "aspect" | "square" | "millimetre";
   divisions: number;         // For standard/diagonals (e.g. 4, 6, 8)
   cellSpacingMm?: number;    // Real-world physical spacing (e.g. 10mm, 20mm)
+  cellSpacingMmX?: number;   // Independent horizontal physical spacing in mm
+  cellSpacingMmY?: number;   // Independent vertical physical spacing in mm
+  gridColumns?: number;      // Calculated horizontal column count
+  gridRows?: number;         // Calculated vertical row count
+  paperMarginXMm?: number;   // Physical horizontal margin offset in mm
+  paperMarginYMm?: number;   // Physical vertical margin offset in mm
   color: string;
   strokeWidth: number;
   showLabels: boolean;       // A1, B2...

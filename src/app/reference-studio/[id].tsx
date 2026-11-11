@@ -17,6 +17,8 @@ import { CropRotateModal } from "../../features/workstation/CropRotateModal";
 import { BeginnerCoachStrip } from "../../features/modes/BeginnerCoachStrip";
 import { ProfessionalControlPanel } from "../../features/modes/ProfessionalControlPanel";
 import { ModeSelectorModal } from "../../features/modes/ModeSelectorModal";
+import { PaperGridCalculatorModal } from "../../features/paper/PaperGridCalculatorModal";
+import type { PaperGridCalculation } from "../../features/paper/types";
 import { chooseImageFromDocuments, choosePhotoFromSystemPicker } from "../../features/images/pickImage";
 import { useAppStore } from "../../state/appStore";
 import * as database from "../../storage/database";
@@ -224,6 +226,71 @@ export default function ReferenceStudioScreen() {
     }
   };
 
+  const handleApplyPaperGrid = (calc: PaperGridCalculation) => {
+    // 1. Update Paper Settings in Store
+    const updatedPaper = {
+      size: calc.paperSize,
+      orientation: calc.orientation,
+      widthMm: calc.paperWidthMm,
+      heightMm: calc.paperHeightMm,
+      marginMm: calc.marginXMm,
+      targetDpi: calc.targetDpi,
+    };
+    setPaperSettings(updatedPaper);
+
+    // 2. Find existing Grid overlay or create new calibrated grid overlay
+    const existingGrid = overlays.find((o) => o.type === "grid");
+    const gridId = existingGrid?.id ?? `overlay-grid-${Date.now().toString(36)}`;
+
+    const updatedGridOverlay = {
+      ...(existingGrid ?? {
+        id: gridId,
+        type: "grid" as const,
+        name: "Paper Calibrated Grid",
+        zIndex: overlays.length + 1,
+        color: "#28594B",
+        strokeWidth: 1.5,
+        showDiagonals: false,
+        showSubdivisions: false,
+      }),
+      visible: true,
+      opacity: existingGrid?.opacity ?? 0.8,
+      locked: existingGrid?.locked ?? false,
+      mode: "standard" as const,
+      cellMode: "millimetre" as const,
+      cellSpacingMm: calc.spacingXMm,
+      cellSpacingMmX: calc.spacingXMm,
+      cellSpacingMmY: calc.spacingYMm,
+      divisions: calc.columns,
+      gridColumns: calc.columns,
+      gridRows: calc.rows,
+      paperMarginXMm: calc.marginXMm,
+      paperMarginYMm: calc.marginYMm,
+      showLabels: true,
+    };
+
+    if (existingGrid) {
+      updateOverlay(updatedGridOverlay);
+    } else {
+      addOverlay(updatedGridOverlay);
+    }
+
+    // 3. Persist to SQLite
+    if (activeProject) {
+      const nextOverlays = existingGrid
+        ? overlays.map((o) => (o.id === gridId ? updatedGridOverlay : o))
+        : [...overlays, updatedGridOverlay];
+
+      const updated = {
+        ...activeProject,
+        paperSettings: updatedPaper,
+        overlays: nextOverlays,
+        updatedAt: Date.now(),
+      };
+      void database.saveProject(updated);
+    }
+  };
+
   const handleSelectPaperSize = (size: PaperSize) => {
     if (size === "CUSTOM") return;
     const dims = STANDARD_PAPER_SIZES[size];
@@ -240,6 +307,10 @@ export default function ReferenceStudioScreen() {
     setActiveBottomTab(tab);
     if (tab === "layers") {
       setLayerDrawerOpen(true);
+      return;
+    }
+    if (tab === "grid") {
+      setPaperPickerOpen(true);
       return;
     }
 
@@ -519,7 +590,7 @@ export default function ReferenceStudioScreen() {
               }}
             >
               <Text style={styles.menuItemIcon}>📄</Text>
-              <Text style={styles.menuItemText}>Configure Paper Format</Text>
+              <Text style={styles.menuItemText}>Smart Paper & Grid Calculator</Text>
             </Pressable>
 
             <Pressable
@@ -562,47 +633,21 @@ export default function ReferenceStudioScreen() {
         </Pressable>
       </Modal>
 
-      {/* PAPER PICKER MODAL */}
-      <Modal
+      {/* SMART PAPER-BASED GRID SPACING CALCULATOR */}
+      <PaperGridCalculatorModal
         visible={paperPickerOpen}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setPaperPickerOpen(false)}
-      >
-        <View style={styles.modalBackdrop}>
-          <Pressable style={styles.dismissArea} onPress={() => setPaperPickerOpen(false)} />
-          <View style={styles.sheetContainer}>
-            <Text style={styles.sheetTitle}>Select Target Paper Format</Text>
-            <Text style={styles.sheetSubtitle}>
-              Calibrates grids and reference overlays for accurate physical drawing.
-            </Text>
-
-            <View style={styles.paperList}>
-              {(["A4", "A3", "A5", "US_LETTER"] as const).map((size) => {
-                const dims = STANDARD_PAPER_SIZES[size];
-                const isSelected = paper.size === size;
-                return (
-                  <Pressable
-                    key={size}
-                    onPress={() => handleSelectPaperSize(size)}
-                    style={[styles.paperOption, isSelected && styles.paperOptionSelected]}
-                  >
-                    <View>
-                      <Text style={[styles.paperOptionTitle, isSelected && styles.paperOptionTitleSelected]}>
-                        {size === "US_LETTER" ? "US Letter" : `ISO ${size}`}
-                      </Text>
-                      <Text style={styles.paperOptionDims}>
-                        {dims.widthMm} × {dims.heightMm} mm · 300 DPI target
-                      </Text>
-                    </View>
-                    {isSelected ? <Text style={styles.checkIcon}>✓</Text> : null}
-                  </Pressable>
-                );
-              })}
-            </View>
-          </View>
-        </View>
-      </Modal>
+        onClose={() => setPaperPickerOpen(false)}
+        initialPaperSize={paper.size}
+        initialOrientation={paper.orientation}
+        initialCustomWidthMm={paper.widthMm}
+        initialCustomHeightMm={paper.heightMm}
+        initialSpacingMm={
+          (overlays.find((o) => o.type === "grid") as any)?.cellSpacingMmX ??
+          (overlays.find((o) => o.type === "grid") as any)?.cellSpacingMm ??
+          20
+        }
+        onApplyGrid={handleApplyPaperGrid}
+      />
       {/* IMAGE ADJUSTMENT PANEL */}
       <ImageAdjustmentPanel
         visible={adjustmentPanelOpen}

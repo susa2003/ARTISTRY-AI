@@ -32,6 +32,12 @@ export function GridOverlayRenderer({ overlay, context }: GridOverlayRendererPro
     cellMode = "square",
     divisions = 4,
     cellSpacingMm,
+    cellSpacingMmX,
+    cellSpacingMmY,
+    gridColumns,
+    gridRows,
+    paperMarginXMm,
+    paperMarginYMm,
     color = "#28594B",
     strokeWidth = 1.5,
     showDiagonals = false,
@@ -99,32 +105,52 @@ export function GridOverlayRenderer({ overlay, context }: GridOverlayRendererPro
       let stepX: number;
       let stepY: number;
 
-      if (cellMode === "millimetre" && cellSpacingMm && cellSpacingMm > 0) {
-        // Calculate real-world physical scaling relative to active paper dimensions
+      if (cellMode === "millimetre" && (cellSpacingMm || cellSpacingMmX)) {
+        // Physical millimetre calculation calibrated to active paper sheet
+        const spacingX = cellSpacingMmX ?? cellSpacingMm ?? 10;
+        const spacingY = cellSpacingMmY ?? cellSpacingMmX ?? cellSpacingMm ?? 10;
         const paperW = Math.max(10, paper.widthMm);
-        const pxPerMm = refWidth / paperW;
-        stepX = cellSpacingMm * pxPerMm;
-        stepY = stepX; // Equal metric grid
+        const paperH = Math.max(10, paper.heightMm);
+        const pxPerMmX = refWidth / paperW;
+        const pxPerMmY = refHeight / paperH;
+        stepX = spacingX * pxPerMmX;
+        stepY = spacingY * pxPerMmY;
+
+        const startX = paperMarginXMm !== undefined ? paperMarginXMm * pxPerMmX : 0;
+        const startY = paperMarginYMm !== undefined ? paperMarginYMm * pxPerMmY : 0;
+        const endX = gridColumns !== undefined ? startX + gridColumns * stepX : refWidth;
+        const endY = gridRows !== undefined ? startY + gridRows * stepY : refHeight;
+
+        for (let x = startX + (startX === 0 ? stepX : 0); x < endX - 0.5; x += stepX) {
+          verticalLines.push({ x, isMajor: true });
+        }
+        for (let y = startY + (startY === 0 ? stepY : 0); y < endY - 0.5; y += stepY) {
+          horizontalLines.push({ y, isMajor: true });
+        }
       } else if (cellMode === "square") {
         const divs = Math.max(1, divisions);
         const squareSize = Math.min(refWidth, refHeight) / divs;
         stepX = squareSize;
         stepY = squareSize;
+
+        for (let x = stepX; x < refWidth - 1; x += stepX) {
+          verticalLines.push({ x, isMajor: true });
+        }
+        for (let y = stepY; y < refHeight - 1; y += stepY) {
+          horizontalLines.push({ y, isMajor: true });
+        }
       } else {
         // Aspect ratio division
         const divs = Math.max(1, divisions);
         stepX = refWidth / divs;
         stepY = refHeight / divs;
-      }
 
-      // Vertical lines
-      for (let x = stepX; x < refWidth - 1; x += stepX) {
-        verticalLines.push({ x, isMajor: true });
-      }
-
-      // Horizontal lines
-      for (let y = stepY; y < refHeight - 1; y += stepY) {
-        horizontalLines.push({ y, isMajor: true });
+        for (let x = stepX; x < refWidth - 1; x += stepX) {
+          verticalLines.push({ x, isMajor: true });
+        }
+        for (let y = stepY; y < refHeight - 1; y += stepY) {
+          horizontalLines.push({ y, isMajor: true });
+        }
       }
 
       // Subdivisions (half-step ticks)
@@ -164,7 +190,24 @@ export function GridOverlayRenderer({ overlay, context }: GridOverlayRendererPro
     }
 
     return { horizontalLines, verticalLines, diagonalLines, subdivisions, focalPoints };
-  }, [refWidth, refHeight, mode, cellMode, divisions, cellSpacingMm, paper.widthMm, showDiagonals, showSubdivisions]);
+  }, [
+    refWidth,
+    refHeight,
+    mode,
+    cellMode,
+    divisions,
+    cellSpacingMm,
+    cellSpacingMmX,
+    cellSpacingMmY,
+    gridColumns,
+    gridRows,
+    paperMarginXMm,
+    paperMarginYMm,
+    paper.widthMm,
+    paper.heightMm,
+    showDiagonals,
+    showSubdivisions,
+  ]);
 
   return (
     <Group opacity={overlay.opacity}>
