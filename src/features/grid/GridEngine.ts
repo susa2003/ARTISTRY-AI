@@ -99,6 +99,13 @@ export function calculateGrid(
         });
       }
     }
+
+    if (config.showDiagonals) {
+      diagonalLines.push(
+        { p1: { x: 0, y: 0 }, p2: { x: width, y: height } },
+        { p1: { x: width, y: 0 }, p2: { x: 0, y: height } }
+      );
+    }
   } else if (config.mode === "golden") {
     // Golden Ratio (1 : 0.6180339887)
     const phi = 0.6180339887;
@@ -113,6 +120,13 @@ export function calculateGrid(
     lines.push({ p1: { x: 0, y: y2 }, p2: { x: width, y: y2 }, isMajor: true });
 
     focalPoints.push({ x: x1, y: y1 }, { x: x2, y: y1 }, { x: x1, y: y2 }, { x: x2, y: y2 });
+
+    if (config.showDiagonals) {
+      diagonalLines.push(
+        { p1: { x: 0, y: 0 }, p2: { x: width, y: height } },
+        { p1: { x: width, y: 0 }, p2: { x: 0, y: height } }
+      );
+    }
   } else {
     // Standard or Diagonals Mode
     const divisions = Math.max(2, Math.min(12, config.divisions));

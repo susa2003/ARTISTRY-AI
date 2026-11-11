@@ -170,7 +170,20 @@ export function LayerDrawer({
               <View style={styles.addSection}>
                 <Text style={styles.addSectionTitle}>ADD TRADITIONAL OVERLAY</Text>
                 <View style={styles.addGrid}>
-                  {(["grid", "loomis", "perspective", "anatomy", "shading", "plumb"] as OverlayType[]).map((type) => {
+                  {(
+                    [
+                      "grid",
+                      "loomis",
+                      "reilly",
+                      "bargue",
+                      "perspective",
+                      "anatomy",
+                      "shading",
+                      "plumb",
+                      "measurement",
+                      "tracing",
+                    ] as OverlayType[]
+                  ).map((type) => {
                     const meta = OVERLAY_TYPE_METADATA[type];
                     return (
                       <Pressable

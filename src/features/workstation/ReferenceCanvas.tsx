@@ -31,8 +31,15 @@ import {
   type Point2D,
   type ViewportTransformParams,
 } from "../coordinate/ReferenceTransform";
-import type { ImageAdjustmentSettings } from "../../domain/overlayTypes";
-import { DEFAULT_IMAGE_ADJUSTMENTS } from "../../domain/overlayTypes";
+import type {
+  ImageAdjustmentSettings,
+  PaperSettings,
+  UnifiedOverlay,
+} from "../../domain/overlayTypes";
+import {
+  DEFAULT_IMAGE_ADJUSTMENTS,
+  DEFAULT_PAPER_SETTINGS,
+} from "../../domain/overlayTypes";
 import {
   createBaseAdjustmentsColorMatrix,
   createContourExtractionColorMatrix,
@@ -40,6 +47,8 @@ import {
   createWhiteoutUniforms,
   getWhiteoutRuntimeEffect,
 } from "../shaders/WhiteoutShader";
+import { OverlayRenderer } from "../overlays/OverlayRenderer";
+import type { OverlayRenderContext } from "../overlays/OverlayContext";
 import { colors } from "../../theme";
 
 interface ReferenceCanvasProps {
@@ -47,6 +56,8 @@ interface ReferenceCanvasProps {
   referenceWidth?: number;
   referenceHeight?: number;
   adjustments?: ImageAdjustmentSettings;
+  overlays?: UnifiedOverlay[];
+  paper?: PaperSettings;
   onImportPress?: () => void;
   onPointTap?: (refPoint: Point2D, normPoint: Point2D) => void;
   onTransformChange?: (params: ViewportTransformParams) => void;
@@ -58,6 +69,8 @@ export function ReferenceCanvas({
   referenceWidth = 1000,
   referenceHeight = 1000,
   adjustments,
+  overlays,
+  paper,
   onImportPress,
   onPointTap,
   onTransformChange,
@@ -138,6 +151,19 @@ export function ReferenceCanvas({
     () => createContourExtractionColorMatrix(currentAdjustments),
     [currentAdjustments]
   );
+
+  // Overlay render context for unified multi-overlay engine
+  const overlayContext: OverlayRenderContext = useMemo(() => {
+    return {
+      refWidth: effectiveWidth,
+      refHeight: effectiveHeight,
+      originalWidth: referenceWidth,
+      originalHeight: referenceHeight,
+      paper: paper ?? DEFAULT_PAPER_SETTINGS,
+      zoom,
+      adjustments: currentAdjustments,
+    };
+  }, [effectiveWidth, effectiveHeight, referenceWidth, referenceHeight, paper, zoom, currentAdjustments]);
 
   // Transform matrix for cropped and rotated reference source
   const imageTransform = useMemo(() => {
@@ -375,6 +401,11 @@ export function ReferenceCanvas({
                     )}
                   </Group>
                 </Group>
+
+                {/* Unified Multi-Overlay Rendering Engine */}
+                {overlays && overlays.length > 0 ? (
+                  <OverlayRenderer overlays={overlays} context={overlayContext} />
+                ) : null}
               </Group>
             ) : null}
           </Canvas>

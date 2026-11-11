@@ -20,12 +20,34 @@ jest.mock("@shopify/react-native-skia", () => {
   return {
     Skia: {
       PathBuilder: {
-        Make: () => ({
-          addRect: jest.fn(),
-          moveTo: jest.fn(),
-          lineTo: jest.fn(),
-          build: jest.fn(() => ({})),
-        }),
+        Make: () => {
+          let opCount = 0;
+          return {
+            addRect: jest.fn(() => { opCount++; }),
+            addOval: jest.fn(() => { opCount++; }),
+            moveTo: jest.fn(() => { opCount++; }),
+            lineTo: jest.fn(() => { opCount++; }),
+            quadTo: jest.fn(() => { opCount++; }),
+            close: jest.fn(),
+            build: jest.fn(() => ({
+              isEmpty: () => opCount === 0,
+            })),
+          };
+        },
+      },
+      Path: {
+        Make: () => {
+          let opCount = 0;
+          return {
+            addRect: jest.fn(() => { opCount++; }),
+            addOval: jest.fn(() => { opCount++; }),
+            moveTo: jest.fn(() => { opCount++; }),
+            lineTo: jest.fn(() => { opCount++; }),
+            quadTo: jest.fn(() => { opCount++; }),
+            close: jest.fn(),
+            isEmpty: () => opCount === 0,
+          };
+        },
       },
       Data: {
         fromBytes: (bytes) => ({ bytes }),

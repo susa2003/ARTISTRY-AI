@@ -29,6 +29,7 @@ import {
   DEFAULT_PAPER_SETTINGS,
   STANDARD_PAPER_SIZES,
 } from "../../domain/overlayTypes";
+import { OVERLAY_REGISTRY } from "../../features/overlays/OverlayRegistry";
 import { colors } from "../../theme";
 
 export default function ReferenceStudioScreen() {
@@ -183,125 +184,11 @@ export default function ReferenceStudioScreen() {
   };
 
   const handleAddDefaultOverlay = (type: OverlayType) => {
-    const id = `overlay-${Date.now().toString(36)}`;
-    let newOverlay: UnifiedOverlay;
-
-    switch (type) {
-      case "grid":
-        newOverlay = {
-          id,
-          type: "grid",
-          name: "Smart Grid",
-          visible: true,
-          opacity: 0.75,
-          locked: false,
-          zIndex: overlays.length + 1,
-          mode: "standard",
-          cellMode: "square",
-          divisions: 4,
-          color: "#28594B",
-          strokeWidth: 1.5,
-          showLabels: true,
-          showDiagonals: false,
-          showSubdivisions: false,
-        };
-        break;
-      case "loomis":
-        newOverlay = {
-          id,
-          type: "loomis",
-          name: "Loomis 3D Head",
-          visible: true,
-          opacity: 0.85,
-          locked: false,
-          zIndex: overlays.length + 1,
-          stage: 1,
-          centerX: 0.5,
-          centerY: 0.45,
-          radius: 0.28,
-          yaw: 0,
-          pitch: 0,
-          roll: 0,
-          jawLength: 1.0,
-          color: "#CB7857",
-          strokeWidth: 2.0,
-          showConstructionPlanes: true,
-        };
-        break;
-      case "perspective":
-        newOverlay = {
-          id,
-          type: "perspective",
-          name: "2-Point Perspective",
-          visible: true,
-          opacity: 0.7,
-          locked: false,
-          zIndex: overlays.length + 1,
-          mode: "2-point",
-          horizonY: 0.5,
-          vp1X: 0.1,
-          vp2X: 0.9,
-          vp3Y: -0.3,
-          rayCount: 10,
-          showVerticals: true,
-          color: "#596A94",
-          strokeWidth: 1.5,
-        };
-        break;
-      case "anatomy":
-        newOverlay = {
-          id,
-          type: "anatomy",
-          name: "8-Head Proportions",
-          visible: true,
-          opacity: 0.8,
-          locked: false,
-          zIndex: overlays.length + 1,
-          mode: "proportions",
-          gender: "neutral",
-          heightRatio: 0.85,
-          centerX: 0.5,
-          centerY: 0.08,
-          showMuscles: false,
-          color: "#28594B",
-          strokeWidth: 1.5,
-        };
-        break;
-      case "shading":
-        newOverlay = {
-          id,
-          type: "shading",
-          name: "5-Value Tonal Scale",
-          visible: true,
-          opacity: 0.65,
-          locked: false,
-          zIndex: overlays.length + 1,
-          lightAngle: 45,
-          lightElevation: 45,
-          valueSteps: 5,
-          showTerminator: true,
-          showLightRay: true,
-          contrast: 1.15,
-          showGraphiteGuide: true,
-        };
-        break;
-      case "plumb":
-        newOverlay = {
-          id,
-          type: "plumb",
-          name: "Plumb Alignment",
-          visible: true,
-          opacity: 0.75,
-          locked: false,
-          zIndex: overlays.length + 1,
-          verticalLines: [0.5],
-          horizontalLines: [0.5],
-          color: "#D5A844",
-          strokeWidth: 1.5,
-        };
-        break;
-      default:
-        newOverlay = {
+    const id = `overlay-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 6)}`;
+    const descriptor = OVERLAY_REGISTRY[type];
+    const newOverlay = descriptor
+      ? descriptor.createDefault(id, overlays.length + 1)
+      : ({
           id,
           type,
           name: `${type.toUpperCase()} Guide`,
@@ -309,12 +196,7 @@ export default function ReferenceStudioScreen() {
           opacity: 0.8,
           locked: false,
           zIndex: overlays.length + 1,
-          mode: "natural",
-          threshold: 128,
-          edgeBoost: true,
-          invert: false,
-        } as any;
-    }
+        } as any);
 
     addOverlay(newOverlay);
   };
@@ -484,6 +366,8 @@ export default function ReferenceStudioScreen() {
           referenceWidth={refWidth}
           referenceHeight={refHeight}
           adjustments={activeProject.imageAdjustments}
+          overlays={overlays}
+          paper={paper}
           onImportPress={handleImportNewReference}
         />
       </View>
