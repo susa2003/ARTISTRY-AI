@@ -49,21 +49,23 @@ export const DEFAULT_PAPER_SETTINGS: PaperSettings = {
   targetDpi: 300,
 };
 
+export interface ImageCropSettings {
+  originX: number;        // Normalized 0.0 to 1.0
+  originY: number;        // Normalized 0.0 to 1.0
+  width: number;          // Normalized 0.0 to 1.0 (width <= 1.0 - originX)
+  height: number;         // Normalized 0.0 to 1.0 (height <= 1.0 - originY)
+}
+
 export interface ImageAdjustmentSettings {
   brightness: number;       // -1.0 to 1.0 (default 0.0)
   contrast: number;         // 0.5 to 2.0 (default 1.0)
-  exposure: number;         // -1.0 to 1.0 (default 0.0)
-  saturation: number;       // 0.0 to 2.0 (default 1.0, 0 = grayscale)
-  grayscale: boolean;       // Grayscale filter toggle
+  exposure: number;         // -2.0 to 2.0 (default 0.0, photographic EV stops)
+  saturation: number;       // 0.0 to 2.0 (default 1.0, 0 = desaturated)
+  grayscale: boolean | number; // 0.0 to 1.0 (0-100%) or boolean toggle
   whiteoutStrength: number; // 0.0 (natural) to 1.0 (pure paper white)
   opacity: number;          // 0.0 to 1.0 (reference layer opacity, default 1.0)
   rotation: 0 | 90 | 180 | 270;
-  crop: {
-    originX: number;        // Normalized 0.0 to 1.0
-    originY: number;
-    width: number;
-    height: number;
-  };
+  crop: ImageCropSettings;
 }
 
 export const DEFAULT_IMAGE_ADJUSTMENTS: ImageAdjustmentSettings = {
@@ -71,7 +73,7 @@ export const DEFAULT_IMAGE_ADJUSTMENTS: ImageAdjustmentSettings = {
   contrast: 1.0,
   exposure: 0.0,
   saturation: 1.0,
-  grayscale: false,
+  grayscale: 0.0,
   whiteoutStrength: 0.0,
   opacity: 1.0,
   rotation: 0,
@@ -82,6 +84,17 @@ export const DEFAULT_IMAGE_ADJUSTMENTS: ImageAdjustmentSettings = {
     height: 1.0,
   },
 };
+
+/**
+ * Returns a normalized 0.0 to 1.0 float representing grayscale intensity.
+ * Accepts both legacy boolean values and modern 0-100% float values.
+ */
+export function getGrayscaleFactor(adjustments: ImageAdjustmentSettings): number {
+  if (typeof adjustments.grayscale === "number") {
+    return Math.max(0.0, Math.min(1.0, adjustments.grayscale));
+  }
+  return adjustments.grayscale ? 1.0 : 0.0;
+}
 
 export interface BaseOverlayConfig {
   id: string;

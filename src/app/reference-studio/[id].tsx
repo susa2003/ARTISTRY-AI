@@ -12,11 +12,23 @@ import { router, useLocalSearchParams } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { ReferenceCanvas } from "../../features/workstation/ReferenceCanvas";
 import { LayerDrawer } from "../../features/workstation/LayerDrawer";
+import { ImageAdjustmentPanel } from "../../features/workstation/ImageAdjustmentPanel";
+import { CropRotateModal } from "../../features/workstation/CropRotateModal";
 import { chooseImageFromDocuments, choosePhotoFromSystemPicker } from "../../features/images/pickImage";
 import { useAppStore } from "../../state/appStore";
 import * as database from "../../storage/database";
-import type { OverlayType, PaperSize, UnifiedOverlay } from "../../domain/overlayTypes";
-import { DEFAULT_PAPER_SETTINGS, STANDARD_PAPER_SIZES } from "../../domain/overlayTypes";
+import type {
+  ImageAdjustmentSettings,
+  ImageCropSettings,
+  OverlayType,
+  PaperSize,
+  UnifiedOverlay,
+} from "../../domain/overlayTypes";
+import {
+  DEFAULT_IMAGE_ADJUSTMENTS,
+  DEFAULT_PAPER_SETTINGS,
+  STANDARD_PAPER_SIZES,
+} from "../../domain/overlayTypes";
 import { colors } from "../../theme";
 
 export default function ReferenceStudioScreen() {
@@ -33,11 +45,16 @@ export default function ReferenceStudioScreen() {
   const addOverlay = useAppStore((state) => state.addOverlay);
   const removeOverlay = useAppStore((state) => state.removeOverlay);
   const setPaperSettings = useAppStore((state) => state.setPaperSettings);
+  const setImageAdjustments = useAppStore((state) => state.setImageAdjustments);
+  const resetImageAdjustments = useAppStore((state) => state.resetImageAdjustments);
+  const resetIndividualAdjustment = useAppStore((state) => state.resetIndividualAdjustment);
 
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [layerDrawerOpen, setLayerDrawerOpen] = useState(false);
+  const [adjustmentPanelOpen, setAdjustmentPanelOpen] = useState(false);
+  const [cropModalOpen, setCropModalOpen] = useState(false);
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [paperPickerOpen, setPaperPickerOpen] = useState(false);
   const [activeBottomTab, setActiveBottomTab] = useState<string>("layers");
@@ -98,6 +115,70 @@ export default function ReferenceStudioScreen() {
       }
     } catch (err) {
       Alert.alert("Import Error", err instanceof Error ? err.message : "Could not open image.");
+    }
+  };
+
+  const handleAdjustmentsChange = (newAdjustments: ImageAdjustmentSettings) => {
+    setImageAdjustments(newAdjustments);
+    if (activeProject) {
+      const updated = {
+        ...activeProject,
+        imageAdjustments: newAdjustments,
+        updatedAt: Date.now(),
+      };
+      void database.saveProject(updated);
+    }
+  };
+
+  const handleApplyCropAndRotate = (newCrop: ImageCropSettings, newRotation: 0 | 90 | 180 | 270) => {
+    const currentAdjustments = activeProject?.imageAdjustments ?? DEFAULT_IMAGE_ADJUSTMENTS;
+    const updatedAdjustments: ImageAdjustmentSettings = {
+      ...currentAdjustments,
+      crop: newCrop,
+      rotation: newRotation,
+    };
+    setImageAdjustments(updatedAdjustments);
+    if (activeProject) {
+      const updated = {
+        ...activeProject,
+        imageAdjustments: updatedAdjustments,
+        updatedAt: Date.now(),
+      };
+      void database.saveProject(updated);
+    }
+  };
+
+  const handleResetAdjustments = () => {
+    resetImageAdjustments();
+    if (activeProject) {
+      const currentCrop = activeProject.imageAdjustments?.crop ?? DEFAULT_IMAGE_ADJUSTMENTS.crop;
+      const currentRotation = activeProject.imageAdjustments?.rotation ?? 0;
+      const reset = {
+        ...DEFAULT_IMAGE_ADJUSTMENTS,
+        crop: currentCrop,
+        rotation: currentRotation,
+      };
+      void database.saveProject({
+        ...activeProject,
+        imageAdjustments: reset,
+        updatedAt: Date.now(),
+      });
+    }
+  };
+
+  const handleResetIndividual = (key: keyof ImageAdjustmentSettings) => {
+    resetIndividualAdjustment(key);
+    if (activeProject) {
+      const existing = activeProject.imageAdjustments ?? DEFAULT_IMAGE_ADJUSTMENTS;
+      const updated = {
+        ...existing,
+        [key]: DEFAULT_IMAGE_ADJUSTMENTS[key],
+      };
+      void database.saveProject({
+        ...activeProject,
+        imageAdjustments: updated,
+        updatedAt: Date.now(),
+      });
     }
   };
 
@@ -336,6 +417,22 @@ export default function ReferenceStudioScreen() {
         {/* Action icons */}
         <View style={styles.topActions}>
           <Pressable
+            onPress={() => setAdjustmentPanelOpen(true)}
+            style={({ pressed }) => [styles.toolbarBtn, pressed && styles.btnPressed]}
+            accessibilityLabel="Adjust Reference Image & Whiteout Lightbox"
+          >
+            <Text style={styles.toolbarIconBtnText}>🎛️</Text>
+          </Pressable>
+
+          <Pressable
+            onPress={() => setCropModalOpen(true)}
+            style={({ pressed }) => [styles.toolbarBtn, pressed && styles.btnPressed]}
+            accessibilityLabel="Crop & Rotate Reference Image"
+          >
+            <Text style={styles.toolbarIconBtnText}>✂️</Text>
+          </Pressable>
+
+          <Pressable
             onPress={handleSave}
             style={({ pressed }) => [
               styles.saveBtn,
@@ -386,6 +483,7 @@ export default function ReferenceStudioScreen() {
           referenceUri={activeReferenceUri}
           referenceWidth={refWidth}
           referenceHeight={refHeight}
+          adjustments={activeProject.imageAdjustments}
           onImportPress={handleImportNewReference}
         />
       </View>
@@ -442,6 +540,28 @@ export default function ReferenceStudioScreen() {
         <Pressable style={styles.modalBackdrop} onPress={() => setMoreMenuOpen(false)}>
           <View style={styles.menuCard}>
             <Text style={styles.menuTitle}>Workspace Options</Text>
+
+            <Pressable
+              style={styles.menuItem}
+              onPress={() => {
+                setMoreMenuOpen(false);
+                setAdjustmentPanelOpen(true);
+              }}
+            >
+              <Text style={styles.menuItemIcon}>🎛️</Text>
+              <Text style={styles.menuItemText}>Image Adjustments & Whiteout</Text>
+            </Pressable>
+
+            <Pressable
+              style={styles.menuItem}
+              onPress={() => {
+                setMoreMenuOpen(false);
+                setCropModalOpen(true);
+              }}
+            >
+              <Text style={styles.menuItemIcon}>✂️</Text>
+              <Text style={styles.menuItemText}>Crop & Orientation</Text>
+            </Pressable>
 
             <Pressable
               style={styles.menuItem}
@@ -531,6 +651,26 @@ export default function ReferenceStudioScreen() {
           </View>
         </View>
       </Modal>
+      {/* IMAGE ADJUSTMENT PANEL */}
+      <ImageAdjustmentPanel
+        visible={adjustmentPanelOpen}
+        onClose={() => setAdjustmentPanelOpen(false)}
+        adjustments={activeProject.imageAdjustments ?? DEFAULT_IMAGE_ADJUSTMENTS}
+        onChange={handleAdjustmentsChange}
+        onResetIndividual={handleResetIndividual}
+        onResetAll={handleResetAdjustments}
+      />
+
+      {/* CROP & ROTATE MODAL */}
+      <CropRotateModal
+        visible={cropModalOpen}
+        onClose={() => setCropModalOpen(false)}
+        refWidth={refWidth}
+        refHeight={refHeight}
+        currentCrop={activeProject.imageAdjustments?.crop ?? DEFAULT_IMAGE_ADJUSTMENTS.crop}
+        currentRotation={activeProject.imageAdjustments?.rotation ?? 0}
+        onApply={handleApplyCropAndRotate}
+      />
     </SafeAreaView>
   );
 }
@@ -604,6 +744,9 @@ const styles = StyleSheet.create({
     color: "#E2DFD6",
     fontSize: 26,
     lineHeight: 28,
+  },
+  toolbarIconBtnText: {
+    fontSize: 16,
   },
   moreIcon: {
     color: "#E2DFD6",

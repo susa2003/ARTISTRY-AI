@@ -42,7 +42,27 @@ jest.mock("@shopify/react-native-skia", () => {
           readPixels: () => new Uint8Array(40000),
         }),
       },
+      RuntimeEffect: {
+        Make: jest.fn((sksl) => ({
+          makeShader: jest.fn(),
+          makeShaderWithChildren: jest.fn(),
+          getUniformCount: () => 7,
+          getUniformFloatCount: () => 7,
+          source: () => sksl,
+        })),
+      },
+      ColorFilter: {
+        MakeMatrix: jest.fn((matrix) => ({ matrix })),
+      },
     },
+    Canvas: ({ children }) => children ?? null,
+    Group: ({ children }) => children ?? null,
+    Image: ({ children }) => children ?? null,
+    Rect: ({ children }) => children ?? null,
+    ColorMatrix: () => null,
+    Shader: ({ children }) => children ?? null,
+    ImageShader: () => null,
+    useImage: () => ({ width: () => 800, height: () => 1000 }),
     AlphaType: { Unpremul: 1, Premul: 2 },
     ColorType: { RGBA_8888: 4 },
   };

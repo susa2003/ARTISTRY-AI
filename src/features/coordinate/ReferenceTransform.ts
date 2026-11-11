@@ -9,7 +9,7 @@
  * 4. Physical Paper Space: [0..widthMm, 0..heightMm] (Real-world metric millimetres)
  */
 
-import type { PaperSettings } from "../../domain/overlayTypes";
+import type { ImageCropSettings, PaperSettings } from "../../domain/overlayTypes";
 
 export interface Point2D {
   x: number;
@@ -315,4 +315,123 @@ export function physicalMmToReference(
     x: Math.max(0, Math.min(refWidth, Math.round(refX))),
     y: Math.max(0, Math.min(refHeight, Math.round(refY))),
   };
+}
+
+/**
+ * Computes effective dimensions of a reference image after applying crop and 90° stepped rotation.
+ * Swaps width and height when rotated by 90° or 270°.
+ */
+export function computeTransformedDimensions(
+  refWidth: number,
+  refHeight: number,
+  rotationDeg: number = 0,
+  crop?: ImageCropSettings
+): { width: number; height: number } {
+  const cropW = crop ? Math.max(1, Math.round(refWidth * crop.width)) : refWidth;
+  const cropH = crop ? Math.max(1, Math.round(refHeight * crop.height)) : refHeight;
+
+  const normalizedRot = ((rotationDeg % 360) + 360) % 360;
+  if (normalizedRot === 90 || normalizedRot === 270) {
+    return { width: cropH, height: cropW };
+  }
+  return { width: cropW, height: cropH };
+}
+
+/**
+ * Converts a normalized crop definition to pixel source coordinates on the reference image.
+ */
+export function cropToPixelRect(
+  crop: ImageCropSettings,
+  refWidth: number,
+  refHeight: number
+): Rect2D {
+  return {
+    x: Math.round(crop.originX * refWidth),
+    y: Math.round(crop.originY * refHeight),
+    width: Math.max(1, Math.round(crop.width * refWidth)),
+    height: Math.max(1, Math.round(crop.height * refHeight)),
+  };
+}
+
+/**
+ * Converts a pixel source rectangle on the reference image to a normalized crop definition [0..1].
+ */
+export function pixelRectToCrop(
+  rect: Rect2D,
+  refWidth: number,
+  refHeight: number
+): ImageCropSettings {
+  if (refWidth <= 0 || refHeight <= 0) {
+    return { originX: 0, originY: 0, width: 1, height: 1 };
+  }
+  const originX = Math.max(0, Math.min(1, rect.x / refWidth));
+  const originY = Math.max(0, Math.min(1, rect.y / refHeight));
+  const width = Math.max(0.01, Math.min(1 - originX, rect.width / refWidth));
+  const height = Math.max(0.01, Math.min(1 - originY, rect.height / refHeight));
+  return { originX, originY, width, height };
+}
+
+/**
+ * Maps a normalized point [0..1] within a cropped viewport back to source normalized space [0..1].
+ */
+export function croppedNormalizedToSourceNormalized(
+  croppedPt: Point2D,
+  crop: ImageCropSettings
+): Point2D {
+  return {
+    x: crop.originX + croppedPt.x * crop.width,
+    y: crop.originY + croppedPt.y * crop.height,
+  };
+}
+
+/**
+ * Maps a source normalized point [0..1] into cropped viewport normalized space [0..1].
+ */
+export function sourceNormalizedToCroppedNormalized(
+  sourcePt: Point2D,
+  crop: ImageCropSettings
+): Point2D {
+  if (crop.width <= 0 || crop.height <= 0) return { x: 0, y: 0 };
+  return {
+    x: Math.max(0, Math.min(1, (sourcePt.x - crop.originX) / crop.width)),
+    y: Math.max(0, Math.min(1, (sourcePt.y - crop.originY) / crop.height)),
+  };
+}
+
+/**
+ * Rotates a normalized point [0..1, 0..1] around the unit center (0.5, 0.5) by 0, 90, 180, or 270 degrees.
+ */
+export function rotateNormalizedPoint(
+  pt: Point2D,
+  rotationDeg: 0 | 90 | 180 | 270
+): Point2D {
+  switch (rotationDeg) {
+    case 90:
+      return { x: 1 - pt.y, y: pt.x };
+    case 180:
+      return { x: 1 - pt.x, y: 1 - pt.y };
+    case 270:
+      return { x: pt.y, y: 1 - pt.x };
+    default:
+      return { x: pt.x, y: pt.y };
+  }
+}
+
+/**
+ * Inverts the rotation of a normalized point [0..1, 0..1] around the unit center (0.5, 0.5).
+ */
+export function unrotateNormalizedPoint(
+  pt: Point2D,
+  rotationDeg: 0 | 90 | 180 | 270
+): Point2D {
+  switch (rotationDeg) {
+    case 90:
+      return { x: pt.y, y: 1 - pt.x };
+    case 180:
+      return { x: 1 - pt.x, y: 1 - pt.y };
+    case 270:
+      return { x: 1 - pt.y, y: pt.x };
+    default:
+      return { x: pt.x, y: pt.y };
+  }
 }

@@ -3,6 +3,7 @@ import type {
   BrushKind,
   DrawingLayer,
   ExperienceMode,
+  ImageAdjustmentSettings,
   LocalReference,
   PaperSettings,
   ProjectDocument,
@@ -11,6 +12,7 @@ import type {
   UndoSnapshot,
   UnifiedOverlay,
 } from "../domain/types";
+import { DEFAULT_IMAGE_ADJUSTMENTS } from "../domain/types";
 import type { SmoothingLevel } from "../features/drawing/StrokeSmoothing";
 import * as database from "../storage/database";
 import { createId } from "../storage/imageFiles";
@@ -67,6 +69,10 @@ type AppStore = {
   addOverlay: (overlay: UnifiedOverlay) => void;
   removeOverlay: (overlayId: string) => void;
   setPaperSettings: (paper: PaperSettings) => void;
+  setImageAdjustments: (adjustments: ImageAdjustmentSettings) => void;
+  updateImageAdjustment: <K extends keyof ImageAdjustmentSettings>(key: K, value: ImageAdjustmentSettings[K]) => void;
+  resetImageAdjustments: () => void;
+  resetIndividualAdjustment: (key: keyof ImageAdjustmentSettings) => void;
   importStrokesToLayer: (layerName: string, strokes: Stroke[]) => void;
   undo: () => void;
   redo: () => void;
@@ -378,6 +384,43 @@ export const useAppStore = create<AppStore>((set, get) => ({
     const project = state.currentProject;
     if (!project) return {};
     return { currentProject: { ...project, paperSettings, updatedAt: Date.now() } };
+  }),
+  setImageAdjustments: (imageAdjustments) => set((state) => {
+    const project = state.currentProject;
+    if (!project) return {};
+    return { currentProject: { ...project, imageAdjustments, updatedAt: Date.now() } };
+  }),
+  updateImageAdjustment: (key, value) => set((state) => {
+    const project = state.currentProject;
+    if (!project) return {};
+    const existing = project.imageAdjustments ?? DEFAULT_IMAGE_ADJUSTMENTS;
+    const nextAdjustments: ImageAdjustmentSettings = {
+      ...existing,
+      [key]: value,
+    };
+    return { currentProject: { ...project, imageAdjustments: nextAdjustments, updatedAt: Date.now() } };
+  }),
+  resetImageAdjustments: () => set((state) => {
+    const project = state.currentProject;
+    if (!project) return {};
+    // Preserve current crop and rotation when resetting color adjustments, or reset all if needed
+    const existing = project.imageAdjustments ?? DEFAULT_IMAGE_ADJUSTMENTS;
+    const resetAdjustments: ImageAdjustmentSettings = {
+      ...DEFAULT_IMAGE_ADJUSTMENTS,
+      crop: existing.crop,
+      rotation: existing.rotation,
+    };
+    return { currentProject: { ...project, imageAdjustments: resetAdjustments, updatedAt: Date.now() } };
+  }),
+  resetIndividualAdjustment: (key) => set((state) => {
+    const project = state.currentProject;
+    if (!project) return {};
+    const existing = project.imageAdjustments ?? DEFAULT_IMAGE_ADJUSTMENTS;
+    const nextAdjustments: ImageAdjustmentSettings = {
+      ...existing,
+      [key]: DEFAULT_IMAGE_ADJUSTMENTS[key],
+    };
+    return { currentProject: { ...project, imageAdjustments: nextAdjustments, updatedAt: Date.now() } };
   }),
   importStrokesToLayer: (layerName, strokes) => set((state) => {
     const project = state.currentProject;

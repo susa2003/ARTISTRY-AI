@@ -9,26 +9,44 @@ import {
 } from "react-native";
 import {
   Canvas,
+  ColorMatrix,
   Group,
   Image as SkiaImage,
+  ImageShader,
   Rect,
+  Shader,
   useImage,
 } from "@shopify/react-native-skia";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import {
   computeAspectFit,
+  computeTransformedDimensions,
+  croppedNormalizedToSourceNormalized,
+  normalizedToReference,
+  rotateNormalizedPoint,
   screenToNormalized,
   screenToReference,
   toSkiaTransformArray,
+  unrotateNormalizedPoint,
   type Point2D,
   type ViewportTransformParams,
 } from "../coordinate/ReferenceTransform";
+import type { ImageAdjustmentSettings } from "../../domain/overlayTypes";
+import { DEFAULT_IMAGE_ADJUSTMENTS } from "../../domain/overlayTypes";
+import {
+  createBaseAdjustmentsColorMatrix,
+  createContourExtractionColorMatrix,
+  createWhiteoutColorMatrix,
+  createWhiteoutUniforms,
+  getWhiteoutRuntimeEffect,
+} from "../shaders/WhiteoutShader";
 import { colors } from "../../theme";
 
 interface ReferenceCanvasProps {
   referenceUri?: string | null;
   referenceWidth?: number;
   referenceHeight?: number;
+  adjustments?: ImageAdjustmentSettings;
   onImportPress?: () => void;
   onPointTap?: (refPoint: Point2D, normPoint: Point2D) => void;
   onTransformChange?: (params: ViewportTransformParams) => void;
@@ -39,6 +57,7 @@ export function ReferenceCanvas({
   referenceUri,
   referenceWidth = 1000,
   referenceHeight = 1000,
+  adjustments,
   onImportPress,
   onPointTap,
   onTransformChange,
@@ -64,32 +83,90 @@ export function ReferenceCanvas({
 
   const skiaImage = useImage(referenceUri ?? undefined);
 
+  const currentAdjustments = adjustments ?? DEFAULT_IMAGE_ADJUSTMENTS;
+  const currentRotation = currentAdjustments.rotation ?? 0;
+  const currentCrop = currentAdjustments.crop ?? DEFAULT_IMAGE_ADJUSTMENTS.crop;
+
+  // Compute effective visible dimensions accounting for crop and 90° rotation
+  const { width: effectiveWidth, height: effectiveHeight } = useMemo(() => {
+    return computeTransformedDimensions(
+      referenceWidth,
+      referenceHeight,
+      currentRotation,
+      currentCrop
+    );
+  }, [referenceWidth, referenceHeight, currentRotation, currentCrop]);
+
   // Compute aspect-ratio preserving container fit
   const fit = useMemo(() => {
     return computeAspectFit(
-      referenceWidth,
-      referenceHeight,
+      effectiveWidth,
+      effectiveHeight,
       containerWidth,
       containerHeight
     );
-  }, [referenceWidth, referenceHeight, containerWidth, containerHeight]);
+  }, [effectiveWidth, effectiveHeight, containerWidth, containerHeight]);
 
   const transformParams: ViewportTransformParams = useMemo(() => {
     return {
-      refWidth: referenceWidth,
-      refHeight: referenceHeight,
+      refWidth: effectiveWidth,
+      refHeight: effectiveHeight,
       containerWidth,
       containerHeight,
       zoom,
       pan,
       rotationDeg: 0,
     };
-  }, [referenceWidth, referenceHeight, containerWidth, containerHeight, zoom, pan]);
+  }, [effectiveWidth, effectiveHeight, containerWidth, containerHeight, zoom, pan]);
 
   // Skia transform array for the group
   const canvasTransform = useMemo(() => {
     return toSkiaTransformArray(transformParams);
   }, [transformParams]);
+
+  // Whiteout SkSL runtime shader effect and fallback color matrices
+  const whiteoutEffect = useMemo(() => getWhiteoutRuntimeEffect(), []);
+  const whiteoutUniforms = useMemo(
+    () => createWhiteoutUniforms(currentAdjustments),
+    [currentAdjustments]
+  );
+  const baseAdjustmentsMatrix = useMemo(
+    () => createBaseAdjustmentsColorMatrix(currentAdjustments, true),
+    [currentAdjustments]
+  );
+  const contourExtractionMatrix = useMemo(
+    () => createContourExtractionColorMatrix(currentAdjustments),
+    [currentAdjustments]
+  );
+
+  // Transform matrix for cropped and rotated reference source
+  const imageTransform = useMemo(() => {
+    const cropPixelW = Math.max(1, Math.round(referenceWidth * currentCrop.width));
+    const cropPixelH = Math.max(1, Math.round(referenceHeight * currentCrop.height));
+
+    const transforms: Array<
+      { translateX: number } | { translateY: number } | { rotate: number }
+    > = [];
+
+    if (currentRotation === 90) {
+      transforms.push({ translateX: cropPixelH });
+      transforms.push({ rotate: Math.PI / 2 });
+    } else if (currentRotation === 180) {
+      transforms.push({ translateX: cropPixelW });
+      transforms.push({ translateY: cropPixelH });
+      transforms.push({ rotate: Math.PI });
+    } else if (currentRotation === 270) {
+      transforms.push({ translateY: cropPixelW });
+      transforms.push({ rotate: (3 * Math.PI) / 2 });
+    }
+
+    const cropOffsetX = Math.round(currentCrop.originX * referenceWidth);
+    const cropOffsetY = Math.round(currentCrop.originY * referenceHeight);
+    if (cropOffsetX !== 0) transforms.push({ translateX: -cropOffsetX });
+    if (cropOffsetY !== 0) transforms.push({ translateY: -cropOffsetY });
+
+    return transforms;
+  }, [referenceWidth, referenceHeight, currentCrop, currentRotation]);
 
   // Pan gesture for moving reference around
   const panGesture = useMemo(() => {
@@ -153,11 +230,19 @@ export function ReferenceCanvas({
       .onEnd((event) => {
         if (!onPointTap) return;
         const screenPt: Point2D = { x: event.x, y: event.y };
-        const refPt = screenToReference(screenPt, transformParams);
-        const normPt = screenToNormalized(screenPt, transformParams);
-        onPointTap(refPt, normPt);
+        const effectiveRefPt = screenToReference(screenPt, transformParams);
+        const effectiveNormPt = screenToNormalized(screenPt, transformParams);
+
+        // Map back to uncropped source coordinates
+        let sourceNormPt = croppedNormalizedToSourceNormalized(effectiveNormPt, currentCrop);
+        if (currentRotation) {
+          sourceNormPt = unrotateNormalizedPoint(sourceNormPt, currentRotation as 0 | 90 | 180 | 270);
+        }
+        const sourceRefPt = normalizedToReference(sourceNormPt, referenceWidth, referenceHeight);
+
+        onPointTap(sourceRefPt, effectiveNormPt);
       });
-  }, [onPointTap, transformParams]);
+  }, [onPointTap, transformParams, currentCrop, currentRotation, referenceWidth, referenceHeight]);
 
   const gestures = useMemo(() => {
     return Gesture.Simultaneous(panGesture, pinchGesture, tapGesture);
@@ -227,18 +312,69 @@ export function ReferenceCanvas({
                 <Rect
                   x={0}
                   y={0}
-                  width={referenceWidth}
-                  height={referenceHeight}
+                  width={effectiveWidth}
+                  height={effectiveHeight}
                   color="#FFFEFA"
                 />
-                <SkiaImage
-                  image={skiaImage}
-                  x={0}
-                  y={0}
-                  width={referenceWidth}
-                  height={referenceHeight}
-                  fit="fill"
-                />
+
+                {/* Cropped & Rotated Image Surface with Hardware Whiteout Shader */}
+                <Group clip={{ x: 0, y: 0, width: effectiveWidth, height: effectiveHeight }}>
+                  <Group transform={imageTransform}>
+                    {whiteoutEffect ? (
+                      // Primary Pipeline: Hardware GPU SkSL Shader with per-pixel non-linear contour protection
+                      <Rect
+                        x={0}
+                        y={0}
+                        width={referenceWidth}
+                        height={referenceHeight}
+                      >
+                        <Shader source={whiteoutEffect} uniforms={whiteoutUniforms}>
+                          <ImageShader
+                            image={skiaImage}
+                            x={0}
+                            y={0}
+                            width={referenceWidth}
+                            height={referenceHeight}
+                            fit="fill"
+                            tx="clamp"
+                            ty="clamp"
+                          />
+                        </Shader>
+                      </Rect>
+                    ) : (
+                      // Fallback Pipeline: Multi-Pass Contour-Aware Canvas Compositing
+                      // Pass 1: Base adjusted and bleached image
+                      // Pass 2: High-contrast contour pass blended with Multiply to restore dark pencil/ink lines
+                      <Group opacity={currentAdjustments.opacity}>
+                        <SkiaImage
+                          image={skiaImage}
+                          x={0}
+                          y={0}
+                          width={referenceWidth}
+                          height={referenceHeight}
+                          fit="fill"
+                        >
+                          <ColorMatrix matrix={baseAdjustmentsMatrix} />
+                        </SkiaImage>
+
+                        {currentAdjustments.whiteoutStrength > 0.05 ? (
+                          <SkiaImage
+                            image={skiaImage}
+                            x={0}
+                            y={0}
+                            width={referenceWidth}
+                            height={referenceHeight}
+                            fit="fill"
+                            blendMode="multiply"
+                            opacity={Math.min(1.0, currentAdjustments.whiteoutStrength * 0.85)}
+                          >
+                            <ColorMatrix matrix={contourExtractionMatrix} />
+                          </SkiaImage>
+                        ) : null}
+                      </Group>
+                    )}
+                  </Group>
+                </Group>
               </Group>
             ) : null}
           </Canvas>

@@ -184,7 +184,17 @@ function decodeProject(row: Record<string, unknown>): ProjectDocument {
   let imageAdjustments: ImageAdjustmentSettings | undefined;
   if (row.adjustments_json) {
     try {
-      imageAdjustments = JSON.parse(String(row.adjustments_json));
+      const parsed = JSON.parse(String(row.adjustments_json));
+      if (typeof parsed === "object" && parsed !== null) {
+        imageAdjustments = {
+          ...DEFAULT_IMAGE_ADJUSTMENTS,
+          ...parsed,
+          crop: {
+            ...DEFAULT_IMAGE_ADJUSTMENTS.crop,
+            ...(parsed.crop ?? {}),
+          },
+        };
+      }
     } catch {
       // Safe fallback
     }
