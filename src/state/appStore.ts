@@ -16,6 +16,7 @@ import { DEFAULT_IMAGE_ADJUSTMENTS } from "../domain/types";
 import type { SmoothingLevel } from "../features/drawing/StrokeSmoothing";
 import * as database from "../storage/database";
 import { createId } from "../storage/imageFiles";
+export { createId };
 
 const CANVAS_HEIGHT = 1400;
 
@@ -93,6 +94,7 @@ type AppStore = {
   toggleLessonCompletion: (lessonId: string) => Promise<void>;
   setLessonCompleted: (lessonId: string, completed: boolean) => Promise<void>;
   completeDailyChallenge: (title: string, projectId?: string) => Promise<number>;
+  refreshStreak: () => Promise<void>;
 };
 
 export const useAppStore = create<AppStore>((set, get) => ({
@@ -212,6 +214,16 @@ export const useAppStore = create<AppStore>((set, get) => ({
       },
     });
     return result.streak;
+  },
+  refreshStreak: async () => {
+    const streakData = await database.getStreakData();
+    set({
+      streak: {
+        current: streakData.currentStreak,
+        longest: streakData.longestStreak,
+        lastActiveDate: streakData.lastActiveDate,
+      },
+    });
   },
   refreshProjects: async () => set({ projects: await database.listProjects() }),
   setReference: async (reference) => {

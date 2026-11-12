@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import * as Sharing from "expo-sharing";
-import { AppHeader, Button, Screen } from "../../components/AppUI";
+import { AppHeader, Button, Screen, useResponsiveLayout } from "../../components/AppUI";
 import { DrawingSurface, type DrawingSurfaceHandle } from "../../features/drawing/DrawingSurface";
 import type { BrushKind } from "../../domain/types";
 import type { SmoothingLevel } from "../../features/drawing/StrokeSmoothing";
@@ -86,9 +86,56 @@ export default function StudioScreen() {
     }
   }, [timerSeconds, challengeCompleted, challengeTitle, completeDailyChallenge, project?.id]);
   const surfaceRef = useRef<DrawingSurfaceHandle>(null);
+  const layout = useResponsiveLayout();
   const { width } = useWindowDimensions();
   const currentId = Array.isArray(routeId) ? routeId[0] : routeId;
   const current = project?.id === currentId ? project : null;
+
+  const [isNavigating, setIsNavigating] = useState(false);
+  const [isAutoSaving, setIsAutoSaving] = useState(false);
+
+  const handleSafeBack = async () => {
+    if (isNavigating) return;
+    setIsNavigating(true);
+    try {
+      await saveCurrentProject();
+    } catch {
+      // Proceed even on background save error
+    }
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace("/projects");
+    }
+  };
+
+  const handleSwitchToReferenceStudio = async () => {
+    if (!current || isNavigating) return;
+    setIsNavigating(true);
+    try {
+      await saveCurrentProject();
+      router.push(`/reference-studio/${current.id}`);
+    } catch {
+      Alert.alert("Save Error", "Could not save drawing before switching studios.");
+      setIsNavigating(false);
+    }
+  };
+
+  const confirmDeleteLayer = (layer: { id: string; name: string; strokes: unknown[] }) => {
+    if (!current || current.layers.length <= 1) return;
+    if (layer.strokes.length > 0) {
+      Alert.alert(
+        "Delete Layer?",
+        `"${layer.name}" contains ${layer.strokes.length} strokes. Are you sure you want to remove it?`,
+        [
+          { text: "Keep Layer", style: "cancel" },
+          { text: "Delete", style: "destructive", onPress: () => deleteLayer(layer.id) },
+        ]
+      );
+    } else {
+      deleteLayer(layer.id);
+    }
+  };
 
   useEffect(() => {
     if (currentId && project?.id !== currentId) {
@@ -97,7 +144,10 @@ export default function StudioScreen() {
         Alert.alert(
           "Project unavailable",
           error instanceof Error ? error.message : "This local drawing could not be opened.",
-          [{ text: "OK", onPress: () => router.back() }]
+          [{ text: "OK", onPress: () => {
+            if (router.canGoBack()) router.back();
+            else router.replace("/projects");
+          } }]
         );
       });
     }
@@ -105,12 +155,13 @@ export default function StudioScreen() {
 
   useEffect(() => {
     if (!current) return;
+    setIsAutoSaving(true);
     const timer = setTimeout(() => {
-      void saveCurrentProject();
+      void saveCurrentProject().finally(() => setIsAutoSaving(false));
     }, 700);
     return () => {
       clearTimeout(timer);
-      void saveCurrentProject();
+      void saveCurrentProject().finally(() => setIsAutoSaving(false));
     };
   }, [current, saveCurrentProject]);
 
@@ -167,15 +218,36 @@ export default function StudioScreen() {
   return (
     <Screen scroll={false}>
       <View style={styles.editor}>
-        <AppHeader
-          title={current.name}
-          onBack={() => router.back()}
-          right={
+        {/* Workstation Top Bar with Identity & Studio Switcher */}
+        <View style={styles.topBar}>
+          <Pressable
+            onPress={() => void handleSafeBack()}
+            disabled={isNavigating}
+            style={({ pressed }) => [styles.navBtn, isNavigating && styles.disabled, pressed && styles.btnPressed]}
+            accessibilityLabel="Back to Home"
+          >
+            <Text style={styles.navBtnText}>‹ Back</Text>
+          </Pressable>
+
+          <View style={styles.titleGroup}>
+            <View style={styles.workspacePill}>
+              <Text style={styles.workspacePillDot}>●</Text>
+              <Text style={styles.workspacePillText}>
+                {isNavigating ? "SAVING & SWITCHING…" : isAutoSaving ? "AUTOSAVING…" : "FREE DRAWING STUDIO"}
+              </Text>
+            </View>
+            <Text numberOfLines={1} style={styles.projectTitle}>
+              {current.name}
+            </Text>
+          </View>
+
+          <View style={styles.topRightActions}>
             <View style={styles.historyButtons}>
               <Pressable
                 onPress={undo}
                 disabled={!canUndo}
                 style={[styles.historyButton, !canUndo && styles.disabled]}
+                accessibilityLabel="Undo last stroke"
               >
                 <Text style={styles.historyGlyph}>↶</Text>
               </Pressable>
@@ -183,12 +255,24 @@ export default function StudioScreen() {
                 onPress={redo}
                 disabled={!canRedo}
                 style={[styles.historyButton, !canRedo && styles.disabled]}
+                accessibilityLabel="Redo stroke"
               >
                 <Text style={styles.historyGlyph}>↷</Text>
               </Pressable>
             </View>
-          }
-        />
+
+            <Pressable
+              onPress={() => void handleSwitchToReferenceStudio()}
+              disabled={isNavigating}
+              style={({ pressed }) => [styles.switchStudioBtn, isNavigating && styles.disabled, pressed && styles.btnPressed]}
+              accessibilityLabel="Switch to Reference Studio"
+            >
+              <Text style={styles.switchStudioBtnText}>
+                {isNavigating ? "⏳" : layout.isSmallPhone ? "📐 Ref" : "📐 Ref Studio ›"}
+              </Text>
+            </Pressable>
+          </View>
+        </View>
 
         {/* --- DAILY CHALLENGE COUNTDOWN TIMER BANNER --- */}
         {timerSeconds !== null && (
@@ -224,46 +308,65 @@ export default function StudioScreen() {
         )}
 
         {/* --- TOOLS & PAN / LAYERS ROW --- */}
-        <View style={styles.toolRow}>
-          {tools.map((item) => (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.toolRowScroll}
+          contentContainerStyle={[
+            styles.toolRowContent,
+            !layout.isSmallPhone && { justifyContent: "space-between", flexGrow: 1 },
+          ]}
+        >
+          <View style={styles.toolButtonGroup}>
+            {tools.map((item) => (
+              <Pressable
+                key={item.id}
+                onPress={() => {
+                  setTool(item.id);
+                  setPanMode(false);
+                }}
+                style={[styles.toolButton, tool === item.id && !panMode && styles.toolButtonActive]}
+                accessibilityLabel={`${item.label} tool`}
+              >
+                <Text style={[styles.toolGlyph, tool === item.id && !panMode && styles.toolActiveText]}>
+                  {item.glyph}
+                </Text>
+                <Text style={[styles.toolLabel, tool === item.id && !panMode && styles.toolActiveText]}>
+                  {item.label}
+                </Text>
+              </Pressable>
+            ))}
             <Pressable
-              key={item.id}
-              onPress={() => {
-                setTool(item.id);
-                setPanMode(false);
-              }}
-              style={[styles.toolButton, tool === item.id && !panMode && styles.toolButtonActive]}
+              onPress={() => setPanMode((value) => !value)}
+              style={[styles.toolButton, panMode && styles.panActive]}
+              accessibilityLabel="Pan and zoom mode"
             >
-              <Text style={[styles.toolGlyph, tool === item.id && !panMode && styles.toolActiveText]}>
-                {item.glyph}
-              </Text>
-              <Text style={[styles.toolLabel, tool === item.id && !panMode && styles.toolActiveText]}>
-                {item.label}
+              <Text style={[styles.toolGlyph, panMode && styles.toolActiveText]}>✥</Text>
+              <Text style={[styles.toolLabel, panMode && styles.toolActiveText]}>Move</Text>
+            </Pressable>
+
+            {/* Stroke Stabilizer Toggle */}
+            <Pressable
+              onPress={cycleSmoothing}
+              style={styles.stabilizerBtn}
+              accessibilityLabel={`Stroke stabilizer: ${smoothing}`}
+            >
+              <Text style={styles.stabilizerIcon}>⚡</Text>
+              <Text style={styles.stabilizerLabel}>
+                {smoothing.toUpperCase()}
               </Text>
             </Pressable>
-          ))}
+          </View>
+
           <Pressable
-            onPress={() => setPanMode((value) => !value)}
-            style={[styles.toolButton, panMode && styles.panActive]}
+            onPress={() => setLayersOpen(true)}
+            style={styles.layersButton}
+            accessibilityLabel={`Open layers (${current.layers.length})`}
           >
-            <Text style={[styles.toolGlyph, panMode && styles.toolActiveText]}>✥</Text>
-            <Text style={[styles.toolLabel, panMode && styles.toolActiveText]}>Move</Text>
-          </Pressable>
-
-          {/* Stroke Stabilizer Toggle */}
-          <Pressable onPress={cycleSmoothing} style={styles.stabilizerBtn} accessibilityLabel="Toggle stroke stabilizer">
-            <Text style={styles.stabilizerIcon}>⚡</Text>
-            <Text style={styles.stabilizerLabel}>
-              {smoothing.toUpperCase()}
-            </Text>
-          </Pressable>
-
-          <View style={styles.spacer} />
-          <Pressable onPress={() => setLayersOpen(true)} style={styles.layersButton}>
             <Text style={styles.layersGlyph}>▤</Text>
             <Text style={styles.layersText}>Layers ({current.layers.length})</Text>
           </Pressable>
-        </View>
+        </ScrollView>
 
         {/* --- HARDWARE-ACCELERATED SKIA CANVAS HOST --- */}
         <View style={styles.canvasHost}>
@@ -360,7 +463,17 @@ export default function StudioScreen() {
       <Modal visible={layersOpen} animationType="slide" transparent onRequestClose={() => setLayersOpen(false)}>
         <View style={styles.modalScrim}>
           <Pressable style={StyleSheet.absoluteFill} onPress={() => setLayersOpen(false)} />
-          <View style={[styles.layerSheet, width > 720 && styles.layerSheetTablet]}>
+          <View
+            style={[
+              styles.layerSheet,
+              {
+                maxWidth: typeof layout.contentMaxWidth === "number" ? Math.min(layout.contentMaxWidth, 640) : 640,
+                alignSelf: "center",
+                width: "100%",
+              },
+              layout.isTablet && styles.layerSheetTablet,
+            ]}
+          >
             <View style={styles.sheetHandle} />
             <View style={styles.sheetHeader}>
               <View>
@@ -385,7 +498,11 @@ export default function StudioScreen() {
                 return (
                   <View
                     key={layer.id}
-                    style={[styles.layerRow, layer.id === current.activeLayerId && styles.layerRowActive]}
+                    style={[
+                      styles.layerRow,
+                      layer.id === current.activeLayerId && styles.layerRowActive,
+                      layout.isSmallPhone && { flexDirection: "column", alignItems: "stretch", paddingVertical: 8 },
+                    ]}
                   >
                     <Pressable onPress={() => selectLayer(layer.id)} style={styles.layerMain}>
                       <Text style={styles.layerIcon}>▤</Text>
@@ -417,71 +534,74 @@ export default function StudioScreen() {
                       </View>
                     </Pressable>
 
-                    {/* Opacity Cycle (100% -> 75% -> 50% -> 25%) */}
-                    <Pressable
-                      onPress={() => {
-                        const nextOpacity = layer.opacity <= 0.3 ? 1.0 : layer.opacity - 0.25;
-                        setLayerOpacity(layer.id, nextOpacity);
-                      }}
-                      style={styles.layerSmallBtn}
-                      accessibilityLabel="Adjust layer opacity"
-                    >
-                      <Text style={styles.layerSmallBtnText}>{Math.round(layer.opacity * 100)}%</Text>
-                    </Pressable>
+                    <View style={[styles.layerButtonRow, layout.isSmallPhone && { justifyContent: "space-between", paddingTop: 4 }]}>
+                      {/* Opacity Cycle (100% -> 75% -> 50% -> 25%) */}
+                      <Pressable
+                        onPress={() => {
+                          const nextOpacity = layer.opacity <= 0.3 ? 1.0 : layer.opacity - 0.25;
+                          setLayerOpacity(layer.id, nextOpacity);
+                        }}
+                        style={styles.layerSmallBtn}
+                        accessibilityLabel="Adjust layer opacity"
+                      >
+                        <Text style={styles.layerSmallBtnText}>{Math.round(layer.opacity * 100)}%</Text>
+                      </Pressable>
 
-                    {/* Move Up / Down */}
-                    <Pressable
-                      onPress={() => moveLayer(layer.id, "up")}
-                      disabled={isTop}
-                      style={[styles.layerSmallBtn, isTop && styles.disabled]}
-                    >
-                      <Text style={styles.layerSmallBtnText}>▲</Text>
-                    </Pressable>
-                    <Pressable
-                      onPress={() => moveLayer(layer.id, "down")}
-                      disabled={isBottom}
-                      style={[styles.layerSmallBtn, isBottom && styles.disabled]}
-                    >
-                      <Text style={styles.layerSmallBtnText}>▼</Text>
-                    </Pressable>
+                      {/* Move Up / Down */}
+                      <Pressable
+                        onPress={() => moveLayer(layer.id, "up")}
+                        disabled={isTop}
+                        style={[styles.layerSmallBtn, isTop && styles.disabled]}
+                      >
+                        <Text style={styles.layerSmallBtnText}>▲</Text>
+                      </Pressable>
+                      <Pressable
+                        onPress={() => moveLayer(layer.id, "down")}
+                        disabled={isBottom}
+                        style={[styles.layerSmallBtn, isBottom && styles.disabled]}
+                      >
+                        <Text style={styles.layerSmallBtnText}>▼</Text>
+                      </Pressable>
 
-                    {/* Duplicate Layer */}
-                    <Pressable
-                      onPress={() => duplicateLayer(layer.id)}
-                      style={styles.layerSmallBtn}
-                      accessibilityLabel="Duplicate layer"
-                    >
-                      <Text style={styles.layerSmallBtnText}>⧉</Text>
-                    </Pressable>
+                      {/* Duplicate Layer */}
+                      <Pressable
+                        onPress={() => duplicateLayer(layer.id)}
+                        style={styles.layerSmallBtn}
+                        accessibilityLabel="Duplicate layer"
+                      >
+                        <Text style={styles.layerSmallBtnText}>⧉</Text>
+                      </Pressable>
 
-                    {/* Rename Layer */}
-                    <Pressable
-                      onPress={() => {
-                        selectLayer(layer.id);
-                        setLayerNameDraft(layer.name);
-                        setEditingLayerId(layer.id);
-                      }}
-                      style={styles.layerAction}
-                      accessibilityLabel={`Rename ${layer.name}`}
-                    >
-                      <Text style={styles.layerActionGlyph}>✎</Text>
-                    </Pressable>
+                      {/* Rename Layer */}
+                      <Pressable
+                        onPress={() => {
+                          selectLayer(layer.id);
+                          setLayerNameDraft(layer.name);
+                          setEditingLayerId(layer.id);
+                        }}
+                        style={styles.layerAction}
+                        accessibilityLabel={`Rename ${layer.name}`}
+                      >
+                        <Text style={styles.layerActionGlyph}>✎</Text>
+                      </Pressable>
 
-                    {/* Visibility Toggle */}
-                    <Pressable onPress={() => toggleLayer(layer.id)} style={styles.layerAction}>
-                      <Text style={styles.layerActionGlyph}>{layer.visible ? "◉" : "○"}</Text>
-                    </Pressable>
+                      {/* Visibility Toggle */}
+                      <Pressable onPress={() => toggleLayer(layer.id)} style={styles.layerAction}>
+                        <Text style={styles.layerActionGlyph}>{layer.visible ? "◉" : "○"}</Text>
+                      </Pressable>
 
-                    {/* Delete Layer */}
-                    <Pressable
-                      onPress={() => deleteLayer(layer.id)}
-                      style={styles.layerAction}
-                      disabled={current.layers.length <= 1}
-                    >
-                      <Text style={[styles.layerDeleteGlyph, current.layers.length <= 1 && styles.disabled]}>
-                        ⌫
-                      </Text>
-                    </Pressable>
+                      {/* Delete Layer */}
+                      <Pressable
+                        onPress={() => confirmDeleteLayer(layer)}
+                        style={styles.layerAction}
+                        disabled={current.layers.length <= 1}
+                        accessibilityLabel={`Delete ${layer.name}`}
+                      >
+                        <Text style={[styles.layerDeleteGlyph, current.layers.length <= 1 && styles.disabled]}>
+                          ⌫
+                        </Text>
+                      </Pressable>
+                    </View>
                   </View>
                 );
               })}
@@ -498,11 +618,82 @@ export default function StudioScreen() {
 const styles = StyleSheet.create({
   editor: { flex: 1, minHeight: 500 },
   loading: { color: colors.muted, marginTop: 35, textAlign: "center" },
+  topBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.line,
+    marginBottom: 8,
+  },
+  navBtn: {
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    backgroundColor: colors.paper,
+    borderWidth: 1,
+    borderColor: colors.line,
+    minHeight: 36,
+    justifyContent: "center",
+  },
+  navBtnText: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: colors.ink,
+  },
+  btnPressed: {
+    opacity: 0.75,
+  },
+  titleGroup: {
+    flex: 1,
+    marginHorizontal: 8,
+  },
+  workspacePill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  workspacePillDot: {
+    color: colors.moss,
+    fontSize: 8,
+  },
+  workspacePillText: {
+    fontSize: 9,
+    fontWeight: "800",
+    color: colors.moss,
+    letterSpacing: 0.8,
+  },
+  projectTitle: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: colors.ink,
+  },
+  topRightActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  switchStudioBtn: {
+    backgroundColor: "#EBF1ED",
+    paddingHorizontal: 9,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#C3D5CA",
+    minHeight: 36,
+    justifyContent: "center",
+  },
+  switchStudioBtnText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: colors.moss,
+  },
   historyButtons: { flexDirection: "row", gap: 5 },
   historyButton: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: colors.paper,
     borderWidth: 1,
     borderColor: colors.line,
@@ -511,6 +702,9 @@ const styles = StyleSheet.create({
   },
   historyGlyph: { fontSize: 21, lineHeight: 25, color: colors.ink },
   disabled: { opacity: 0.3 },
+  toolRowScroll: { maxHeight: 54, marginBottom: 8 },
+  toolRowContent: { flexDirection: "row", alignItems: "center", gap: 6, paddingVertical: 2 },
+  toolButtonGroup: { flexDirection: "row", alignItems: "center", gap: 6 },
   toolRow: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 9 },
   toolButton: {
     minWidth: 48,
@@ -542,7 +736,7 @@ const styles = StyleSheet.create({
   stabilizerLabel: { fontSize: 8, fontWeight: "800", color: colors.moss, marginTop: 1 },
   spacer: { flex: 1 },
   layersButton: {
-    height: 44,
+    height: 48,
     paddingHorizontal: 11,
     borderRadius: 14,
     alignItems: "center",
@@ -563,11 +757,11 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   controlPanel: { paddingTop: 9, paddingBottom: 5, gap: 7 },
-  sizeRow: { flexDirection: "row", alignItems: "center", gap: 8, minHeight: 32 },
+  sizeRow: { flexDirection: "row", alignItems: "center", gap: 8, minHeight: 34 },
   controlCaption: { color: colors.muted, fontSize: 8, fontWeight: "800", letterSpacing: 1.3, width: 62 },
   sizeButton: {
-    width: 28,
-    height: 28,
+    width: 32,
+    height: 32,
     alignItems: "center",
     justifyContent: "center",
     borderRadius: 9,
@@ -581,14 +775,14 @@ const styles = StyleSheet.create({
   sizeValue: { width: 36, color: colors.muted, fontSize: 10 },
   panelDivider: { height: 20, width: 1, backgroundColor: colors.line, marginHorizontal: 3 },
   layerShort: { color: colors.moss, fontSize: 10, fontWeight: "700", flex: 1 },
-  colorRow: { flexDirection: "row", alignItems: "center", gap: 6, minHeight: 32 },
+  colorRow: { flexDirection: "row", alignItems: "center", gap: 6, minHeight: 34 },
   colorCaption: { width: 52 },
   colorControls: { alignItems: "center", gap: 8, paddingRight: 5 },
-  colorSwatch: { width: 20, height: 20, borderRadius: 10, borderWidth: 1, borderColor: "rgba(23,32,28,.13)" },
+  colorSwatch: { width: 22, height: 22, borderRadius: 11, borderWidth: 1, borderColor: "rgba(23,32,28,.13)" },
   selectedSwatch: { borderWidth: 2.5, borderColor: colors.moss, transform: [{ scale: 1.12 }] },
   hexInput: {
     width: 70,
-    height: 30,
+    height: 32,
     borderRadius: 9,
     borderWidth: 1,
     borderColor: colors.line,
@@ -599,7 +793,7 @@ const styles = StyleSheet.create({
   },
   applyColor: {
     paddingHorizontal: 7,
-    height: 29,
+    height: 32,
     borderRadius: 8,
     backgroundColor: colors.mossLight,
     alignItems: "center",
@@ -620,7 +814,7 @@ const styles = StyleSheet.create({
   savedDot: { width: 6, height: 6, borderRadius: 4, backgroundColor: colors.moss },
   savedText: { color: colors.muted, fontSize: 9 },
   exportButtons: { flexDirection: "row", gap: 7 },
-  exportButton: { minHeight: 36, borderRadius: 12, paddingHorizontal: 12 },
+  exportButton: { minHeight: 44, borderRadius: 12, paddingHorizontal: 12 },
   modalScrim: { flex: 1, backgroundColor: "rgba(17,23,20,.45)", justifyContent: "flex-end", alignItems: "center" },
   layerSheet: {
     width: "100%",
@@ -638,15 +832,15 @@ const styles = StyleSheet.create({
   sheetTitle: { color: colors.ink, fontFamily: "Georgia", fontSize: 26 },
   sheetCopy: { color: colors.muted, fontSize: 11, marginTop: 4 },
   closeButton: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: colors.paper,
     alignItems: "center",
     justifyContent: "center",
   },
   closeGlyph: { color: colors.muted, fontSize: 24, lineHeight: 27 },
-  addLayerButton: { alignSelf: "flex-start", minHeight: 40, marginBottom: 11 },
+  addLayerButton: { alignSelf: "flex-start", minHeight: 44, marginBottom: 11 },
   layerList: { maxHeight: 360 },
   layerRow: {
     minHeight: 56,
@@ -661,7 +855,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   layerRowActive: { borderColor: colors.moss, backgroundColor: "#F6F8F1" },
-  layerMain: { flex: 1, minHeight: 54, flexDirection: "row", alignItems: "center", gap: 8 },
+  layerMain: { flex: 1, minHeight: 50, flexDirection: "row", alignItems: "center", gap: 8 },
   layerIcon: { color: colors.moss, fontSize: 18, width: 22, textAlign: "center" },
   layerName: { color: colors.ink, fontSize: 12, fontWeight: "700" },
   layerNameInput: {
@@ -673,16 +867,18 @@ const styles = StyleSheet.create({
     borderColor: colors.moss,
   },
   layerMarks: { color: colors.muted, fontSize: 9, marginTop: 2 },
+  layerButtonRow: { flexDirection: "row", alignItems: "center", gap: 4 },
   layerSmallBtn: {
-    paddingHorizontal: 6,
-    paddingVertical: 4,
+    paddingHorizontal: 8,
+    minHeight: 34,
+    minWidth: 34,
     borderRadius: 6,
     backgroundColor: "#ECEFE6",
     alignItems: "center",
     justifyContent: "center",
   },
   layerSmallBtnText: { fontSize: 10, fontWeight: "800", color: colors.ink },
-  layerAction: { width: 32, height: 32, alignItems: "center", justifyContent: "center" },
+  layerAction: { width: 36, height: 36, alignItems: "center", justifyContent: "center" },
   layerActionGlyph: { color: colors.moss, fontSize: 16 },
   layerDeleteGlyph: { color: colors.danger, fontSize: 15 },
   timerBanner: {
@@ -719,5 +915,5 @@ const styles = StyleSheet.create({
   },
   timerToggleText: { fontSize: 10, fontWeight: "700", color: colors.white },
   timerTitle: { flex: 1, marginLeft: 10, fontSize: 11, fontWeight: "700", color: colors.ink },
-  doneButton: { marginTop: 15 },
+  doneButton: { marginTop: 15, minHeight: 44 },
 });

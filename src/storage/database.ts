@@ -1,4 +1,7 @@
 import * as SQLite from "expo-sqlite";
+import type { SavedDrawingComparisonRecord } from "../features/comparison/types";
+import type { SavedReferenceAnalysisRecord } from "../features/assistant/types";
+import type { PracticeSessionRecord } from "../features/practice/types";
 import type {
   DrawingAnalysisRecord,
   DrawingLayer,
@@ -113,6 +116,42 @@ async function database() {
           project_id TEXT NOT NULL,
           events_json TEXT NOT NULL,
           duration_ms INTEGER NOT NULL,
+          created_at INTEGER NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS practice_sessions (
+          id TEXT PRIMARY KEY NOT NULL,
+          exercise_id TEXT NOT NULL,
+          category TEXT NOT NULL,
+          difficulty TEXT NOT NULL,
+          target_duration_minutes INTEGER NOT NULL,
+          elapsed_duration_seconds INTEGER NOT NULL,
+          status TEXT NOT NULL,
+          notes TEXT,
+          self_assessment_json TEXT,
+          started_at INTEGER NOT NULL,
+          completed_at INTEGER,
+          created_at INTEGER NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS reference_analyses (
+          id TEXT PRIMARY KEY NOT NULL,
+          project_id TEXT,
+          image_uri TEXT NOT NULL,
+          created_at INTEGER NOT NULL,
+          analysis_json TEXT NOT NULL,
+          user_notes TEXT
+        );
+
+        CREATE TABLE IF NOT EXISTS drawing_comparisons (
+          id TEXT PRIMARY KEY NOT NULL,
+          project_id TEXT,
+          reference_uri TEXT NOT NULL,
+          drawing_uri TEXT NOT NULL,
+          alignment_json TEXT NOT NULL,
+          comparison_mode TEXT NOT NULL,
+          feedback_json TEXT NOT NULL,
+          user_notes TEXT,
           created_at INTEGER NOT NULL
         );
 
@@ -824,3 +863,281 @@ export async function setOnboardingCompleted(completed: boolean): Promise<void> 
     completed ? "true" : "false"
   );
 }
+
+// =========================================================================
+// PHASE 7B: PRACTICE STUDIO PERSISTENCE
+// =========================================================================
+
+export async function savePracticeSession(session: PracticeSessionRecord): Promise<void> {
+  const db = await database();
+  await db.runAsync(
+    `INSERT INTO practice_sessions (id, exercise_id, category, difficulty, target_duration_minutes,
+      elapsed_duration_seconds, status, notes, self_assessment_json, started_at, completed_at, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT(id) DO UPDATE SET
+      exercise_id=excluded.exercise_id, category=excluded.category, difficulty=excluded.difficulty,
+      target_duration_minutes=excluded.target_duration_minutes, elapsed_duration_seconds=excluded.elapsed_duration_seconds,
+      status=excluded.status, notes=excluded.notes, self_assessment_json=excluded.self_assessment_json,
+      started_at=excluded.started_at, completed_at=excluded.completed_at`,
+    session.id,
+    session.exerciseId,
+    session.category,
+    session.difficulty,
+    session.targetDurationMinutes,
+    session.elapsedDurationSeconds,
+    session.status,
+    session.notes ?? null,
+    session.selfAssessmentResults ? JSON.stringify(session.selfAssessmentResults) : null,
+    session.startedAt,
+    session.completedAt ?? null,
+    session.createdAt
+  );
+}
+
+export async function getPracticeSessions(limit: number = 50): Promise<PracticeSessionRecord[]> {
+  const db = await database();
+  const rows = await db.getAllAsync<Record<string, unknown>>(
+    "SELECT * FROM practice_sessions ORDER BY created_at DESC LIMIT ?",
+    limit
+  );
+  return rows.map((row) => ({
+    id: String(row.id),
+    exerciseId: String(row.exercise_id),
+    category: row.category as any,
+    difficulty: row.difficulty as any,
+    targetDurationMinutes: Number(row.target_duration_minutes),
+    elapsedDurationSeconds: Number(row.elapsed_duration_seconds),
+    status: row.status as any,
+    notes: row.notes ? String(row.notes) : undefined,
+    selfAssessmentResults: row.self_assessment_json ? JSON.parse(String(row.self_assessment_json)) : undefined,
+    startedAt: Number(row.started_at),
+    completedAt: row.completed_at != null ? Number(row.completed_at) : undefined,
+    createdAt: Number(row.created_at),
+  }));
+}
+
+export async function getPracticeSessionsByExercise(exerciseId: string): Promise<PracticeSessionRecord[]> {
+  const db = await database();
+  const rows = await db.getAllAsync<Record<string, unknown>>(
+    "SELECT * FROM practice_sessions WHERE exercise_id = ? ORDER BY created_at DESC",
+    exerciseId
+  );
+  return rows.map((row) => ({
+    id: String(row.id),
+    exerciseId: String(row.exercise_id),
+    category: row.category as any,
+    difficulty: row.difficulty as any,
+    targetDurationMinutes: Number(row.target_duration_minutes),
+    elapsedDurationSeconds: Number(row.elapsed_duration_seconds),
+    status: row.status as any,
+    notes: row.notes ? String(row.notes) : undefined,
+    selfAssessmentResults: row.self_assessment_json ? JSON.parse(String(row.self_assessment_json)) : undefined,
+    startedAt: Number(row.started_at),
+    completedAt: row.completed_at != null ? Number(row.completed_at) : undefined,
+    createdAt: Number(row.created_at),
+  }));
+}
+
+export async function getPracticeSessionStats(): Promise<{
+  totalSessions: number;
+  completedCount: number;
+  totalPracticeTimeMinutes: number;
+}> {
+  const db = await database();
+  const rows = await db.getAllAsync<{ status: string; elapsed_duration_seconds: number }>(
+    "SELECT status, elapsed_duration_seconds FROM practice_sessions"
+  );
+  let totalSessions = rows.length;
+  let completedCount = 0;
+  let totalSeconds = 0;
+  for (const r of rows) {
+    if (r.status === "completed") {
+      completedCount++;
+    }
+    totalSeconds += Number(r.elapsed_duration_seconds || 0);
+  }
+  return {
+    totalSessions,
+    completedCount,
+    totalPracticeTimeMinutes: Math.round(totalSeconds / 60),
+  };
+}
+
+export async function recordPracticeCompletion(
+  session: PracticeSessionRecord
+): Promise<{ streak: number; isNewDay: boolean }> {
+  await savePracticeSession({
+    ...session,
+    status: "completed",
+    completedAt: session.completedAt ?? Date.now(),
+  });
+
+  const db = await database();
+  const today = formatDateString();
+  const streakRow = await db.getFirstAsync<{ current_streak: number; longest_streak: number; last_active_date: string | null }>(
+    "SELECT current_streak, longest_streak, last_active_date FROM streak_data WHERE id = 1"
+  );
+
+  let currentStreak = streakRow?.current_streak ?? 0;
+  let longestStreak = streakRow?.longest_streak ?? 0;
+  const lastActive = streakRow?.last_active_date;
+  let isNewDay = false;
+
+  if (!lastActive) {
+    currentStreak = 1;
+    isNewDay = true;
+  } else if (lastActive === today) {
+    isNewDay = false;
+  } else {
+    const lastDate = new Date(lastActive);
+    const currentDate = new Date(today);
+    const diffDays = Math.round((currentDate.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24));
+    if (diffDays === 1) {
+      currentStreak += 1;
+    } else {
+      currentStreak = 1;
+    }
+    isNewDay = true;
+  }
+
+  longestStreak = Math.max(longestStreak, currentStreak);
+
+  await db.runAsync(
+    `UPDATE streak_data SET current_streak = ?, longest_streak = ?, last_active_date = ? WHERE id = 1`,
+    currentStreak,
+    longestStreak,
+    today
+  );
+
+  return { streak: currentStreak, isNewDay };
+}
+
+// =========================================================================
+// PHASE 7C: AI DRAWING ASSISTANT & REFERENCE ANALYSIS PERSISTENCE
+// =========================================================================
+
+export async function saveReferenceAnalysis(record: SavedReferenceAnalysisRecord): Promise<void> {
+  const db = await database();
+  await db.runAsync(
+    `INSERT INTO reference_analyses (id, project_id, image_uri, created_at, analysis_json, user_notes)
+     VALUES (?, ?, ?, ?, ?, ?)
+     ON CONFLICT(id) DO UPDATE SET
+      project_id=excluded.project_id, image_uri=excluded.image_uri, created_at=excluded.created_at,
+      analysis_json=excluded.analysis_json, user_notes=excluded.user_notes`,
+    record.id,
+    record.projectId ?? null,
+    record.imageUri,
+    record.createdAt,
+    JSON.stringify(record.analysis),
+    record.userNotes ?? null
+  );
+}
+
+export async function getReferenceAnalyses(limit: number = 30): Promise<SavedReferenceAnalysisRecord[]> {
+  const db = await database();
+  const rows = await db.getAllAsync<Record<string, unknown>>(
+    "SELECT * FROM reference_analyses ORDER BY created_at DESC LIMIT ?",
+    limit
+  );
+  return rows.map((row) => ({
+    id: String(row.id),
+    projectId: row.project_id ? String(row.project_id) : undefined,
+    imageUri: String(row.image_uri),
+    createdAt: Number(row.created_at),
+    analysis: JSON.parse(String(row.analysis_json || "{}")),
+    userNotes: row.user_notes ? String(row.user_notes) : undefined,
+  }));
+}
+
+export async function getReferenceAnalysesByProject(projectId: string): Promise<SavedReferenceAnalysisRecord[]> {
+  const db = await database();
+  const rows = await db.getAllAsync<Record<string, unknown>>(
+    "SELECT * FROM reference_analyses WHERE project_id = ? ORDER BY created_at DESC",
+    projectId
+  );
+  return rows.map((row) => ({
+    id: String(row.id),
+    projectId: row.project_id ? String(row.project_id) : undefined,
+    imageUri: String(row.image_uri),
+    createdAt: Number(row.created_at),
+    analysis: JSON.parse(String(row.analysis_json || "{}")),
+    userNotes: row.user_notes ? String(row.user_notes) : undefined,
+  }));
+}
+
+export async function deleteReferenceAnalysis(id: string): Promise<void> {
+  const db = await database();
+  await db.runAsync("DELETE FROM reference_analyses WHERE id = ?", id);
+}
+
+// =========================================================================
+// PHASE 7D: DRAWING COMPARISON & FEEDBACK PERSISTENCE
+// =========================================================================
+
+export async function saveDrawingComparison(record: SavedDrawingComparisonRecord): Promise<void> {
+  const db = await database();
+  await db.runAsync(
+    `INSERT INTO drawing_comparisons (id, project_id, reference_uri, drawing_uri, alignment_json,
+      comparison_mode, feedback_json, user_notes, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT(id) DO UPDATE SET
+      project_id=excluded.project_id, reference_uri=excluded.reference_uri, drawing_uri=excluded.drawing_uri,
+      alignment_json=excluded.alignment_json, comparison_mode=excluded.comparison_mode,
+      feedback_json=excluded.feedback_json, user_notes=excluded.user_notes, created_at=excluded.created_at`,
+    record.id,
+    record.projectId ?? null,
+    record.referenceUri,
+    record.drawingUri,
+    JSON.stringify(record.alignment),
+    record.comparisonMode,
+    JSON.stringify(record.feedback),
+    record.userNotes ?? null,
+    record.createdAt
+  );
+}
+
+export async function getDrawingComparisons(limit: number = 30): Promise<SavedDrawingComparisonRecord[]> {
+  const db = await database();
+  const rows = await db.getAllAsync<Record<string, unknown>>(
+    "SELECT * FROM drawing_comparisons ORDER BY created_at DESC LIMIT ?",
+    limit
+  );
+  return rows.map((row) => ({
+    id: String(row.id),
+    projectId: row.project_id ? String(row.project_id) : undefined,
+    referenceUri: String(row.reference_uri),
+    drawingUri: String(row.drawing_uri),
+    alignment: JSON.parse(String(row.alignment_json || "{}")),
+    comparisonMode: row.comparison_mode as any,
+    feedback: JSON.parse(String(row.feedback_json || "{}")),
+    userNotes: row.user_notes ? String(row.user_notes) : undefined,
+    createdAt: Number(row.created_at),
+  }));
+}
+
+export async function getDrawingComparisonsByProject(projectId: string): Promise<SavedDrawingComparisonRecord[]> {
+  const db = await database();
+  const rows = await db.getAllAsync<Record<string, unknown>>(
+    "SELECT * FROM drawing_comparisons WHERE project_id = ? ORDER BY created_at DESC",
+    projectId
+  );
+  return rows.map((row) => ({
+    id: String(row.id),
+    projectId: row.project_id ? String(row.project_id) : undefined,
+    referenceUri: String(row.reference_uri),
+    drawingUri: String(row.drawing_uri),
+    alignment: JSON.parse(String(row.alignment_json || "{}")),
+    comparisonMode: row.comparison_mode as any,
+    feedback: JSON.parse(String(row.feedback_json || "{}")),
+    userNotes: row.user_notes ? String(row.user_notes) : undefined,
+    createdAt: Number(row.created_at),
+  }));
+}
+
+export async function deleteDrawingComparison(id: string): Promise<void> {
+  const db = await database();
+  await db.runAsync("DELETE FROM drawing_comparisons WHERE id = ?", id);
+}
+
+
+

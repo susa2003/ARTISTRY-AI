@@ -102,6 +102,9 @@ jest.mock("expo-sqlite", () => {
     generatedReferences: new Map(),
     savedPalettes: new Map(),
     strokeReplays: new Map(),
+    practiceSessions: new Map(),
+    referenceAnalyses: new Map(),
+    drawingComparisons: new Map(),
   };
 
   const mockDb = {
@@ -163,6 +166,46 @@ jest.mock("expo-sqlite", () => {
         });
       } else if (sql.includes("DELETE FROM saved_palettes")) {
         store.savedPalettes.delete(params[0]);
+      } else if (sql.includes("INSERT INTO practice_sessions")) {
+        store.practiceSessions.set(params[0], {
+          id: params[0],
+          exercise_id: params[1],
+          category: params[2],
+          difficulty: params[3],
+          target_duration_minutes: params[4],
+          elapsed_duration_seconds: params[5],
+          status: params[6],
+          notes: params[7],
+          self_assessment_json: params[8],
+          started_at: params[9],
+          completed_at: params[10],
+          created_at: params[11],
+        });
+      } else if (sql.includes("INSERT INTO reference_analyses")) {
+        store.referenceAnalyses.set(params[0], {
+          id: params[0],
+          project_id: params[1],
+          image_uri: params[2],
+          created_at: params[3],
+          analysis_json: params[4],
+          user_notes: params[5],
+        });
+      } else if (sql.includes("DELETE FROM reference_analyses")) {
+        store.referenceAnalyses.delete(params[0]);
+      } else if (sql.includes("INSERT INTO drawing_comparisons")) {
+        store.drawingComparisons.set(params[0], {
+          id: params[0],
+          project_id: params[1],
+          reference_uri: params[2],
+          drawing_uri: params[3],
+          alignment_json: params[4],
+          comparison_mode: params[5],
+          feedback_json: params[6],
+          user_notes: params[7],
+          created_at: params[8],
+        });
+      } else if (sql.includes("DELETE FROM drawing_comparisons")) {
+        store.drawingComparisons.delete(params[0]);
       } else if (sql.includes("INSERT INTO stroke_replays")) {
         store.strokeReplays.set(params[1], {
           id: params[0],
@@ -231,6 +274,27 @@ jest.mock("expo-sqlite", () => {
       }
       if (sql.includes("FROM projects")) {
         return Array.from(store.projects.values());
+      }
+      if (sql.includes("FROM practice_sessions")) {
+        const all = Array.from(store.practiceSessions.values());
+        if (sql.includes("WHERE exercise_id = ?")) {
+          return all.filter((s) => s.exercise_id === params[0]);
+        }
+        return all;
+      }
+      if (sql.includes("FROM reference_analyses")) {
+        const all = Array.from(store.referenceAnalyses.values());
+        if (sql.includes("WHERE project_id = ?")) {
+          return all.filter((a) => a.project_id === params[0]);
+        }
+        return all;
+      }
+      if (sql.includes("FROM drawing_comparisons")) {
+        const all = Array.from(store.drawingComparisons.values());
+        if (sql.includes("WHERE project_id = ?")) {
+          return all.filter((c) => c.project_id === params[0]);
+        }
+        return all;
       }
       return [];
     }),

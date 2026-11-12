@@ -17,6 +17,7 @@ import {
   Text,
   View,
 } from "react-native";
+import { router } from "expo-router";
 import type {
   GridOverlayConfig,
   LoomisOverlayConfig,
@@ -24,6 +25,7 @@ import type {
   ShadingOverlayConfig,
   UnifiedOverlay,
 } from "../../domain/overlayTypes";
+import { useResponsiveLayout } from "../../components/AppUI";
 
 interface ProfessionalControlPanelProps {
   visible: boolean;
@@ -38,6 +40,7 @@ export function ProfessionalControlPanel({
   overlays,
   onUpdateOverlay,
 }: ProfessionalControlPanelProps) {
+  const layout = useResponsiveLayout();
   const [selectedOverlayId, setSelectedOverlayId] = useState<string | null>(null);
 
   const activeOverlay = overlays.find((o) => o.id === selectedOverlayId) ?? overlays[0];
@@ -54,7 +57,16 @@ export function ProfessionalControlPanel({
       <View style={styles.backdrop}>
         <Pressable style={styles.dismissArea} onPress={onClose} />
 
-        <View style={styles.sheet}>
+        <View
+          style={[
+            styles.sheet,
+            {
+              maxWidth: typeof layout.contentMaxWidth === "number" ? Math.min(layout.contentMaxWidth, 640) : "100%",
+              alignSelf: "center",
+              width: "100%",
+            },
+          ]}
+        >
           {/* Header */}
           <View style={styles.header}>
             <View style={styles.headerTitleGroup}>
@@ -70,6 +82,31 @@ export function ProfessionalControlPanel({
               accessibilityLabel="Close control panel"
             >
               <Text style={styles.closeBtnText}>✕</Text>
+            </Pressable>
+          </View>
+
+          {/* Quick Studio Tools Bar */}
+          <View style={[styles.quickToolsRow, layout.isSmallPhone && { flexDirection: "column" }]}>
+            <Pressable
+              onPress={() => {
+                onClose();
+                router.push("/assistant/index" as any);
+              }}
+              style={({ pressed }) => [styles.quickToolBtn, pressed && styles.pressed]}
+              accessibilityLabel="Open AI Assistant"
+            >
+              <Text style={styles.quickToolBtnText}>🤖 AI Reference Analysis</Text>
+            </Pressable>
+
+            <Pressable
+              onPress={() => {
+                onClose();
+                router.push("/comparison/index" as any);
+              }}
+              style={({ pressed }) => [styles.quickToolBtn, pressed && styles.pressed]}
+              accessibilityLabel="Open Drawing Comparison"
+            >
+              <Text style={styles.quickToolBtnText}>⚖️ Drawing Comparison</Text>
             </Pressable>
           </View>
 
@@ -525,9 +562,9 @@ const styles = StyleSheet.create({
     color: "#F6F5EE",
   },
   closeBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    minWidth: 44,
+    minHeight: 44,
+    borderRadius: 22,
     backgroundColor: "#222B25",
     justifyContent: "center",
     alignItems: "center",
@@ -539,6 +576,29 @@ const styles = StyleSheet.create({
   },
   pressed: {
     opacity: 0.8,
+  },
+  quickToolsRow: {
+    flexDirection: "row",
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: "#222C26",
+  },
+  quickToolBtn: {
+    flex: 1,
+    backgroundColor: "#1F2923",
+    paddingVertical: 7,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#2B3C31",
+    alignItems: "center",
+  },
+  quickToolBtnText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#B2C5B9",
   },
   tabScroll: {
     maxHeight: 46,

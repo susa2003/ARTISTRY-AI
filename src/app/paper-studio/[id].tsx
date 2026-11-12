@@ -341,7 +341,13 @@ export default function PaperStudioScreen() {
       {/* Top HUD */}
       <View style={styles.topHud}>
         <Pressable
-          onPress={() => router.back()}
+          onPress={() => {
+            if (router.canGoBack()) {
+              router.back();
+            } else {
+              router.replace(`/reference-studio/${activeProject?.id ?? routeId}` as any);
+            }
+          }}
           style={({ pressed }) => [styles.backBtn, pressed && styles.pressed]}
           accessibilityLabel="Back to Reference Studio"
         >

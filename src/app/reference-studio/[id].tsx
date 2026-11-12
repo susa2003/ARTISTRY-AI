@@ -4,6 +4,7 @@ import {
   Modal,
   Pressable,
   SafeAreaView,
+  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -36,8 +37,10 @@ import {
 } from "../../domain/overlayTypes";
 import { OVERLAY_REGISTRY } from "../../features/overlays/OverlayRegistry";
 import { colors } from "../../theme";
+import { useResponsiveLayout } from "../../components/AppUI";
 
 export default function ReferenceStudioScreen() {
+  const layout = useResponsiveLayout();
   const { id: routeId } = useLocalSearchParams<{ id: string }>();
   const currentProject = useAppStore((state) => state.currentProject);
   const openProject = useAppStore((state) => state.openProject);
@@ -98,6 +101,7 @@ export default function ReferenceStudioScreen() {
   const refHeight = reference?.height ?? activeProject?.height ?? 1600;
   const overlays: UnifiedOverlay[] = activeProject?.overlays ?? [];
   const paper = activeProject?.paperSettings ?? DEFAULT_PAPER_SETTINGS;
+  const [isNavigating, setIsNavigating] = useState(false);
 
   const handleSave = async () => {
     try {
@@ -106,6 +110,46 @@ export default function ReferenceStudioScreen() {
       setTimeout(() => setSaveSuccess(false), 2000);
     } catch {
       Alert.alert("Save Failed", "Could not save project to local database.");
+    }
+  };
+
+  const handleSafeBack = async () => {
+    if (isNavigating) return;
+    setIsNavigating(true);
+    try {
+      await saveCurrentProject();
+    } catch {
+      // Proceed even on background save error
+    }
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace("/projects");
+    }
+  };
+
+  const handleSwitchToFreeDrawing = async () => {
+    if (!activeProject || isNavigating) return;
+    setIsNavigating(true);
+    try {
+      setMoreMenuOpen(false);
+      await saveCurrentProject();
+      router.push(`/studio/${activeProject.id}`);
+    } catch {
+      Alert.alert("Navigation Error", "Could not switch to Free Drawing Studio.");
+      setIsNavigating(false);
+    }
+  };
+
+  const handleSwitchToPaperStudio = async () => {
+    if (!activeProject || isNavigating) return;
+    setIsNavigating(true);
+    try {
+      setMoreMenuOpen(false);
+      await saveCurrentProject();
+      router.push(`/paper-studio/${activeProject.id}`);
+    } catch {
+      setIsNavigating(false);
     }
   };
 
@@ -372,9 +416,10 @@ export default function ReferenceStudioScreen() {
       {/* TOP TOOLBAR */}
       <View style={styles.topToolbar}>
         <Pressable
-          onPress={() => router.back()}
-          style={({ pressed }) => [styles.toolbarBtn, pressed && styles.btnPressed]}
-          accessibilityLabel="Back"
+          onPress={() => void handleSafeBack()}
+          disabled={isNavigating}
+          style={({ pressed }) => [styles.toolbarBtn, isNavigating && styles.btnDisabled, pressed && styles.btnPressed]}
+          accessibilityLabel="Back to Projects"
         >
           <Text style={styles.toolbarBtnIcon}>‹</Text>
         </Pressable>
@@ -385,7 +430,11 @@ export default function ReferenceStudioScreen() {
           </Text>
           <View style={styles.refInfoPill}>
             <Text style={styles.refInfoText}>
-              {refWidth} × {refHeight} px · {paper.size}
+              {isNavigating
+                ? "💾 Saving & Navigating…"
+                : layout.isSmallPhone
+                ? paper.size
+                : `${refWidth} × ${refHeight} px · ${paper.size}`}
             </Text>
           </View>
         </View>
@@ -498,32 +547,41 @@ export default function ReferenceStudioScreen() {
 
       {/* BOTTOM TOOL NAVIGATION */}
       <View style={styles.bottomNav}>
-        {[
-          { key: "grid", label: "Grid", icon: "⌗" },
-          { key: "construction", label: "Loomis", icon: "⨁" },
-          { key: "tracing", label: "Tracing", icon: "◻" },
-          { key: "anatomy", label: "Anatomy", icon: "♟" },
-          { key: "perspective", label: "3D Rays", icon: "◬" },
-          { key: "shading", label: "Shading", icon: "◑" },
-          { key: "measure", label: "Plumb", icon: "┼" },
-          { key: "layers", label: `Layers (${overlays.length})`, icon: "◫" },
-        ].map((tab) => {
-          const isActive = activeBottomTab === tab.key;
-          return (
-            <Pressable
-              key={tab.key}
-              onPress={() => handleBottomTabPress(tab.key)}
-              style={[styles.bottomTab, isActive && styles.bottomTabActive]}
-            >
-              <Text style={[styles.bottomTabIcon, isActive && styles.bottomTabIconActive]}>
-                {tab.icon}
-              </Text>
-              <Text numberOfLines={1} style={[styles.bottomTabLabel, isActive && styles.bottomTabLabelActive]}>
-                {tab.label}
-              </Text>
-            </Pressable>
-          );
-        })}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={[
+            styles.bottomNavScroll,
+            !layout.isSmallPhone && { justifyContent: "space-around", flex: 1 },
+          ]}
+        >
+          {[
+            { key: "grid", label: "Grid", icon: "⌗" },
+            { key: "construction", label: "Loomis", icon: "⨁" },
+            { key: "tracing", label: "Tracing", icon: "◻" },
+            { key: "anatomy", label: "Anatomy", icon: "♟" },
+            { key: "perspective", label: "3D Rays", icon: "◬" },
+            { key: "shading", label: "Shading", icon: "◑" },
+            { key: "measure", label: "Plumb", icon: "┼" },
+            { key: "layers", label: `Layers (${overlays.length})`, icon: "◫" },
+          ].map((tab) => {
+            const isActive = activeBottomTab === tab.key;
+            return (
+              <Pressable
+                key={tab.key}
+                onPress={() => handleBottomTabPress(tab.key)}
+                style={[styles.bottomTab, isActive && styles.bottomTabActive]}
+              >
+                <Text style={[styles.bottomTabIcon, isActive && styles.bottomTabIconActive]}>
+                  {tab.icon}
+                </Text>
+                <Text numberOfLines={1} style={[styles.bottomTabLabel, isActive && styles.bottomTabLabelActive]}>
+                  {tab.label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
       </View>
 
       {/* LAYER DRAWER */}
@@ -595,15 +653,26 @@ export default function ReferenceStudioScreen() {
 
             <Pressable
               style={styles.menuItem}
-              onPress={() => {
-                setMoreMenuOpen(false);
-                if (activeProject) {
-                  router.push(`/paper-studio/${activeProject.id}`);
-                }
-              }}
+              onPress={() => void handleSwitchToPaperStudio()}
+              disabled={isNavigating}
+              accessibilityLabel="Paper & Print Studio"
             >
               <Text style={styles.menuItemIcon}>📄</Text>
               <Text style={styles.menuItemText}>Paper & Print Studio (Fullscreen)</Text>
+            </Pressable>
+
+            <Pressable
+              style={styles.menuItem}
+              onPress={() => void handleSwitchToFreeDrawing()}
+              disabled={isNavigating}
+              accessibilityLabel="Switch to Free Drawing Studio"
+            >
+              <Text style={styles.menuItemIcon}>🎨</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.menuItemText}>Switch to Free Drawing Studio</Text>
+                <Text style={styles.menuItemSub}>Draw digitally with Skia brushes and multi-layer canvas</Text>
+              </View>
+              <Text style={styles.menuItemArrow}>›</Text>
             </Pressable>
 
             <Pressable
@@ -615,6 +684,50 @@ export default function ReferenceStudioScreen() {
             >
               <Text style={styles.menuItemIcon}>◫</Text>
               <Text style={styles.menuItemText}>Manage Active Overlays</Text>
+            </Pressable>
+
+            <Pressable
+              style={styles.menuItem}
+              onPress={() => {
+                setMoreMenuOpen(false);
+                router.push("/assistant/index" as any);
+              }}
+            >
+              <Text style={styles.menuItemIcon}>🤖</Text>
+              <Text style={styles.menuItemText}>AI Drawing Assistant & Guidance</Text>
+            </Pressable>
+
+            <Pressable
+              style={styles.menuItem}
+              onPress={() => {
+                setMoreMenuOpen(false);
+                router.push("/comparison/index" as any);
+              }}
+            >
+              <Text style={styles.menuItemIcon}>⚖️</Text>
+              <Text style={styles.menuItemText}>Drawing Comparison & Feedback</Text>
+            </Pressable>
+
+            <Pressable
+              style={styles.menuItem}
+              onPress={() => {
+                setMoreMenuOpen(false);
+                router.push("/learning/index" as any);
+              }}
+            >
+              <Text style={styles.menuItemIcon}>🎓</Text>
+              <Text style={styles.menuItemText}>Learning Studio & Lessons</Text>
+            </Pressable>
+
+            <Pressable
+              style={styles.menuItem}
+              onPress={() => {
+                setMoreMenuOpen(false);
+                router.push("/practice/index" as any);
+              }}
+            >
+              <Text style={styles.menuItemIcon}>⏱️</Text>
+              <Text style={styles.menuItemText}>Practice Studio & Daily Challenges</Text>
             </Pressable>
 
             <Pressable
@@ -780,6 +893,9 @@ const styles = StyleSheet.create({
   btnPressed: {
     opacity: 0.75,
   },
+  btnDisabled: {
+    opacity: 0.45,
+  },
   titleContainer: {
     flex: 1,
   },
@@ -905,13 +1021,16 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   bottomNav: {
-    flexDirection: "row",
     backgroundColor: "#141815",
     borderTopWidth: 1,
     borderTopColor: "#222A25",
     paddingVertical: 6,
+  },
+  bottomNavScroll: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 2,
     paddingHorizontal: 4,
-    justifyContent: "space-around",
   },
   bottomTab: {
     alignItems: "center",
@@ -980,6 +1099,16 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#E2DFD6",
     fontWeight: "500",
+  },
+  menuItemSub: {
+    fontSize: 11,
+    color: "#849086",
+    marginTop: 2,
+  },
+  menuItemArrow: {
+    color: "#6CD498",
+    fontSize: 18,
+    fontWeight: "700",
   },
   menuItemDanger: {
     backgroundColor: "#261D1C",

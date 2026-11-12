@@ -5,9 +5,9 @@
  * practice activities, and completion criteria.
  */
 
-import type { CurriculumLevel, CurriculumLesson } from "./types";
+import type { CurriculumLevel, CurriculumLesson, CommonMistake } from "./types";
 
-export const DRAWING_CURRICULUM: CurriculumLevel[] = [
+const BASE_CURRICULUM: CurriculumLevel[] = [
   // =========================================================================
   // LEVEL 1: DRAWING FUNDAMENTALS
   // =========================================================================
@@ -1456,6 +1456,240 @@ export const DRAWING_CURRICULUM: CurriculumLevel[] = [
     ],
   },
 ];
+
+// =========================================================================
+// PHASE 7A: PEDAGOGICAL CURRICULUM ENRICHMENT
+// =========================================================================
+
+function getCategoryMaterials(category: string, _title: string): string[] {
+  switch (category) {
+    case "fundamentals":
+      return [
+        "2H, HB, and 2B graphite drawing pencils",
+        "A4 drawing paper (100–140 gsm)",
+        "Kneaded eraser & vinyl plastic eraser",
+        "Pencil sharpener with long-point lead",
+      ];
+    case "shapes":
+      return [
+        "2H pencil for wireframe construction",
+        "HB and 2B pencils for definitive contours",
+        "A4 or A3 smooth cartridge paper (120–160 gsm)",
+        "Kneaded eraser for lifting construction guides",
+      ];
+    case "observation":
+      return [
+        "HB pencil & 30cm straightedge or sighting stick",
+        "Proportional divider or thread for plumb sighting",
+        "A4 medium-tooth sketchbook",
+        "Kneaded eraser for highlight correction",
+      ];
+    case "grid":
+      return [
+        "2H hard pencil for faint grid lines",
+        "HB and 2B pencils for subject drawing",
+        "A4 or A3 paper (calibrated in Paper Studio)",
+        "30 cm clear metric ruler (calibrated in mm)",
+        "Kneaded eraser to lift grid lines after completion",
+      ];
+    case "loomis":
+      return [
+        "2H pencil for cranial sphere & jaw construction",
+        "HB pencil for facial thirds & feature placement",
+        "2B/4B pencils for deep accents (pupils, nostrils, hair)",
+        "A4 drawing paper & kneaded eraser",
+      ];
+    case "shading":
+      return [
+        "2H, HB, 2B, 4B, and 6B graphite range",
+        "Tortillon / blending stump (optional)",
+        "Kneaded eraser shaped to a fine chisel tip",
+        "Heavyweight drawing paper (150–200 gsm)",
+        "Clean scrap sheet to rest hand on while shading",
+      ];
+    case "practice":
+    default:
+      return [
+        "Full graphite pencil set (2H through 6B)",
+        "A4 or A3 high-grade drawing paper",
+        "Kneaded eraser & precision mono eraser",
+        "Calibrated ruler & sighting stick",
+        "Physical reference subject or printed plate",
+      ];
+  }
+}
+
+function getCategoryCommonMistakes(category: string, _title: string): CommonMistake[] {
+  switch (category) {
+    case "fundamentals":
+      return [
+        {
+          mistake: "Drawing with hesitant short wrist strokes ('chicken scratching')",
+          prevention: "Lock your wrist gently and swing your entire arm from the shoulder joint using the overhand grip.",
+        },
+        {
+          mistake: "Pressing too hard with graphite during initial layout",
+          prevention: "Hold the pencil higher up the barrel and use a 2H pencil so construction lines erase cleanly.",
+        },
+      ];
+    case "shapes":
+      return [
+        {
+          mistake: "Flattening cylindrical end-caps or skewing ellipse axes",
+          prevention: "Ensure the ellipse minor axis always aligns with the cylinder's central longitudinal axle.",
+        },
+        {
+          mistake: "Drawing diverging box edges instead of converging edges",
+          prevention: "Ghost your lines toward the vanishing points before touching the pencil to the paper.",
+        },
+      ];
+    case "observation":
+      return [
+        {
+          mistake: "Drawing assumed symbols instead of actual observed angles",
+          prevention: "Use sighting techniques: hold your pencil at arm's length with locked elbow to measure relative proportions.",
+        },
+        {
+          mistake: "Tilting the measuring stick between sighting and drawing",
+          prevention: "Keep your sighting stick strictly perpendicular to your line of sight at full arm extension.",
+        },
+      ];
+    case "grid":
+      return [
+        {
+          mistake: "Drawing grid lines too dark, leaving permanent grooves in paper",
+          prevention: "Rule grid lines with a sharp 2H pencil using light feathery touch so they erase effortlessly.",
+        },
+        {
+          mistake: "Miscounting rows or columns during feature transfer",
+          prevention: "Label coordinates (A, B, C across top; 1, 2, 3 down side) and verify cell index before drawing.",
+        },
+      ];
+    case "loomis":
+      return [
+        {
+          mistake: "Flattening the side plane disc of the skull",
+          prevention: "The side ellipse measures exactly 2/3 of the sphere height; rotate it to match head tilt.",
+        },
+        {
+          mistake: "Drawing facial features before establishing the 3D skull cage",
+          prevention: "Always complete the cranium sphere, brow line, and jaw block-in before detailing eyes, nose, or lips.",
+        },
+      ];
+    case "shading":
+      return [
+        {
+          mistake: "Blending light and shadow across the terminator line",
+          prevention: "Group all shadows into a single flat value family first before introducing halftones in the light.",
+        },
+        {
+          mistake: "Making reflected shadow light brighter than direct lit surfaces",
+          prevention: "Reflected light is part of the shadow family; it must stay darker than the darkest lit halftone.",
+        },
+      ];
+    case "practice":
+    default:
+      return [
+        {
+          mistake: "Rushing into fine details before verifying overall proportions",
+          prevention: "Step back 2 meters from your physical drawing at each stage to evaluate big-picture shapes.",
+        },
+        {
+          mistake: "Smudging delicate tonal work with the drawing palm",
+          prevention: "Keep a clean sheet of glassine or scrap paper under your drawing hand at all times.",
+        },
+      ];
+  }
+}
+
+function getCategoryChecklist(category: string, _criteria: string): string[] {
+  const base = [
+    "Are all construction lines light enough to be lifted cleanly with a kneaded eraser?",
+    "Did you maintain relaxed arm posture and draw from the shoulder?",
+  ];
+
+  switch (category) {
+    case "fundamentals":
+      return [
+        ...base,
+        "Are your straight and curved lines confident single strokes without hesitation?",
+        "Did you inspect the difference between H and B graphite grades on paper tooth?",
+      ];
+    case "shapes":
+      return [
+        ...base,
+        "Do 3D forms show proper perspective convergence without reverse-tapering?",
+        "Are ellipses symmetrical along both major and minor axes?",
+      ];
+    case "observation":
+      return [
+        ...base,
+        "Have relative height-to-width ratios been checked with sight-size measurement?",
+        "Do key vertical and horizontal landmarks align under gravity plumb checks?",
+      ];
+    case "grid":
+      return [
+        ...base,
+        "Does each contour line intersect cell boundaries at the exact coordinate ratios?",
+        "Are grid labels clearly marked on physical paper matching the digital reference?",
+      ];
+    case "loomis":
+      return [
+        ...base,
+        "Are the three facial divisions (hairline, brow, nose base, chin) proportionally equal?",
+        "Is the cranial ball-and-plane tilt consistent with the perspective eye level?",
+      ];
+    case "shading":
+      return [
+        ...base,
+        "Is there an unequivocal separation between the light mass and shadow mass?",
+        "Are the 5 form values (highlight, halftone, core shadow, reflected light, cast shadow) distinct?",
+      ];
+    case "practice":
+    default:
+      return [
+        ...base,
+        "Did you step back 2 meters to review proportions and tonal balance from a distance?",
+        "Does the completed physical drawing satisfy the lesson's core completion criteria?",
+      ];
+  }
+}
+
+function getPhysicalPaperGuidance(category: string): string {
+  switch (category) {
+    case "fundamentals":
+      return "Mount your drawing paper at a 15–25° slant. Keep your wrist straight and draw large, confident lines across the entire page.";
+    case "shapes":
+      return "Draw forms at least 8–10 cm in size on your paper. Sizing forms generously prevents cramped wrist drawing and sharpens geometric accuracy.";
+    case "observation":
+      return "Sit upright with your drawing board aligned vertically. Lock your elbow straight when sighting measuring coordinates against your subject.";
+    case "grid":
+      return "Use ARTISTRY AI Paper & Print Studio to print a calibrated grid or rule intervals with a metal ruler. Keep 2H pencil pressure ultra-light.";
+    case "loomis":
+      return "Begin with a faint circle about the size of a tennis ball. Rotate your entire paper sheet if needed to strike smooth circular arcs.";
+    case "shading":
+      return "Place a clean scrap sheet of paper under your drawing hand to prevent skin oils from smudging graphite into the paper tooth.";
+    case "practice":
+    default:
+      return "Step back 2 meters from your physical easel or table every 10 minutes. A distant vantage point immediately reveals structural flaws.";
+  }
+}
+
+function enrichLesson(lesson: CurriculumLesson): CurriculumLesson {
+  return {
+    ...lesson,
+    requiredMaterials: lesson.requiredMaterials ?? getCategoryMaterials(lesson.category, lesson.title),
+    commonMistakes: lesson.commonMistakes ?? getCategoryCommonMistakes(lesson.category, lesson.title),
+    selfAssessmentChecklist:
+      lesson.selfAssessmentChecklist ?? getCategoryChecklist(lesson.category, lesson.completionCriteria),
+    physicalPaperGuidance: lesson.physicalPaperGuidance ?? getPhysicalPaperGuidance(lesson.category),
+  };
+}
+
+export const DRAWING_CURRICULUM: CurriculumLevel[] = BASE_CURRICULUM.map((level) => ({
+  ...level,
+  lessons: level.lessons.map(enrichLesson),
+}));
 
 /**
  * Helper to look up a lesson by its unique id.

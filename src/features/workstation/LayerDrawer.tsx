@@ -9,6 +9,7 @@ import {
 } from "react-native";
 import type { OverlayType, UnifiedOverlay } from "../../domain/overlayTypes";
 import { colors } from "../../theme";
+import { useResponsiveLayout } from "../../components/AppUI";
 
 interface LayerDrawerProps {
   visible: boolean;
@@ -44,6 +45,9 @@ export function LayerDrawer({
   onAddOverlay,
   onRemoveOverlay,
 }: LayerDrawerProps) {
+  const layout = useResponsiveLayout();
+  const addCardWidth = layout.isSmallPhone ? "48%" : layout.isTablet ? "18%" : "31%";
+
   return (
     <Modal
       visible={visible}
@@ -54,7 +58,16 @@ export function LayerDrawer({
       <View style={styles.backdrop}>
         <Pressable style={styles.dismissArea} onPress={onClose} />
 
-        <View style={styles.sheet}>
+        <View
+          style={[
+            styles.sheet,
+            {
+              maxWidth: typeof layout.contentMaxWidth === "number" ? Math.min(layout.contentMaxWidth, 640) : "100%",
+              alignSelf: "center",
+              width: "100%",
+            },
+          ]}
+        >
           {/* Header */}
           <View style={styles.header}>
             <View>
@@ -189,7 +202,7 @@ export function LayerDrawer({
                       <Pressable
                         key={type}
                         onPress={() => onAddOverlay(type)}
-                        style={({ pressed }) => [styles.addCard, pressed && styles.pressed]}
+                        style={({ pressed }) => [styles.addCard, { width: addCardWidth as any }, pressed && styles.pressed]}
                       >
                         <Text style={styles.addCardIcon}>{meta.icon}</Text>
                         <Text style={styles.addCardLabel}>{meta.label}</Text>
@@ -247,9 +260,9 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   closeBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: "#242D26",
     justifyContent: "center",
     alignItems: "center",
@@ -348,8 +361,8 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   iconButton: {
-    width: 32,
-    height: 32,
+    minWidth: 44,
+    minHeight: 44,
     borderRadius: 8,
     backgroundColor: "#28322B",
     justifyContent: "center",

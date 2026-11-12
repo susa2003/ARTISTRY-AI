@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { router } from "expo-router";
-import { AppHeader, Button, Eyebrow, InfoCard, Screen, SectionHeading } from "../components/AppUI";
+import { AppHeader, Button, Eyebrow, InfoCard, Screen, SectionHeading, useResponsiveLayout } from "../components/AppUI";
 import { FEATURES } from "../domain/features";
 import { chooseImageFromDocuments, choosePhotoFromSystemPicker } from "../features/images/pickImage";
 import { VoiceAssistantModal } from "../features/voice/VoiceAssistantModal";
@@ -16,10 +16,10 @@ import type { ToolId } from "../domain/types";
 type ToolCategoryFilter = "all" | "core" | "ai-studio" | "assistant" | "processing" | "pro";
 
 export default function HomeScreen() {
-  const { width } = useWindowDimensions();
+  const { width, isSmallPhone, isTablet, isLandscape } = useResponsiveLayout();
   const isMobile = width < 600;
-  const isTablet = width >= 800;
-  const columns = isTablet ? 4 : isMobile ? 2 : 3;
+  const columns = width >= 900 ? 4 : width >= 600 ? 3 : width < 340 ? 1 : 2;
+  const studioCardWidth = isSmallPhone ? "100%" : isTablet ? "23.5%" : "48%";
   const { t, language, setLanguage } = useTranslation();
   const ready = useAppStore((state) => state.ready);
   const onboardingCompleted = useAppStore((state) => state.onboardingCompleted);
@@ -41,11 +41,22 @@ export default function HomeScreen() {
   }, [ready, onboardingCompleted]);
 
   const startDrawing = async (withReference = false) => {
+    if (busy) return;
+    setBusy(true);
     try {
-      const id = await createProject(withReference ? reference?.uri ?? null : null);
-      router.push(`/studio/${id}`);
+      const id = await createProject(
+        withReference ? reference?.uri ?? null : null,
+        withReference ? "Reference Study" : "Blank Drawing"
+      );
+      if (withReference) {
+        router.push(`/reference-studio/${id}`);
+      } else {
+        router.push(`/studio/${id}`);
+      }
     } catch {
       Alert.alert("Could not start drawing", "The local project store could not be opened.");
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -172,26 +183,36 @@ export default function HomeScreen() {
             </Pressable>
           </View>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.recentScroll}>
-            {projects.slice(0, 6).map((proj) => (
-              <Pressable
-                key={proj.id}
-                onPress={() => router.push(`/studio/${proj.id}` as any)}
-                style={styles.recentCard}
-              >
-                <View style={styles.recentThumb}>
-                  <Text style={styles.recentIcon}>🎨</Text>
-                  <Text style={styles.recentLayerCount}>
-                    {proj.width}×{proj.height}
+            {projects.slice(0, 6).map((proj) => {
+              const isRef = Boolean(proj.referenceUri);
+              return (
+                <Pressable
+                  key={proj.id}
+                  onPress={() => {
+                    if (isRef) {
+                      router.push(`/reference-studio/${proj.id}` as any);
+                    } else {
+                      router.push(`/studio/${proj.id}` as any);
+                    }
+                  }}
+                  style={styles.recentCard}
+                  accessibilityLabel={`Open ${proj.name} in ${isRef ? "Reference Studio" : "Free Drawing Studio"}`}
+                >
+                  <View style={styles.recentThumb}>
+                    <Text style={styles.recentIcon}>{isRef ? "📐" : "🎨"}</Text>
+                    <Text style={styles.recentLayerCount}>
+                      {proj.width}×{proj.height}
+                    </Text>
+                  </View>
+                  <Text style={styles.recentTitle} numberOfLines={1}>
+                    {proj.name}
                   </Text>
-                </View>
-                <Text style={styles.recentTitle} numberOfLines={1}>
-                  {proj.name}
-                </Text>
-                <Text style={styles.recentDate}>
-                  {new Date(proj.updatedAt).toLocaleDateString()}
-                </Text>
-              </Pressable>
-            ))}
+                  <Text style={styles.recentDate}>
+                    {new Date(proj.updatedAt).toLocaleDateString()}
+                  </Text>
+                </Pressable>
+              );
+            })}
           </ScrollView>
         </View>
       ) : null}
@@ -210,6 +231,49 @@ export default function HomeScreen() {
         </View>
         {reference ? <Pressable onPress={() => router.push("/reference")} style={styles.thumbWrap} accessibilityLabel="Open reference preview"><Image source={{ uri: reference.uri }} style={styles.thumb} /><Text style={styles.thumbLabel}>Preview</Text></Pressable> : <View style={styles.importGlyph}><Text style={styles.importGlyphText}>＋</Text></View>}
       </InfoCard>
+
+      {/* Traditional Learning & AI Companion Studios Hub */}
+      <SectionHeading
+        title={language === "ta" ? "பாரம்பரிய கற்றல் & AI வழிகாட்டி" : "Traditional Learning & AI Companion"}
+        detail={language === "ta" ? "பாடத்திட்டம் · தினசரி பயிற்சி · ஆய்வு · ஒப்பீடு" : "Curriculum · Daily Practice · Reference Analysis · Comparison"}
+      />
+      <View style={styles.phase7StudioRow}>
+        <Pressable
+          onPress={() => router.push("/learning/index" as any)}
+          style={({ pressed }) => [styles.phase7Card, { width: studioCardWidth as any }, pressed && styles.pressed]}
+        >
+          <Text style={styles.phase7CardIcon}>🎓</Text>
+          <Text style={styles.phase7CardTitle}>{language === "ta" ? "கற்றல் ஸ்டுடியோ" : "Learning Studio"}</Text>
+          <Text style={styles.phase7CardSub}>{language === "ta" ? "40 பாடங்கள் (7 நிலைகள்)" : "40 Lessons (7 Levels)"}</Text>
+        </Pressable>
+
+        <Pressable
+          onPress={() => router.push("/practice/index" as any)}
+          style={({ pressed }) => [styles.phase7Card, { width: studioCardWidth as any }, pressed && styles.pressed]}
+        >
+          <Text style={styles.phase7CardIcon}>⏱️</Text>
+          <Text style={styles.phase7CardTitle}>{language === "ta" ? "பயிற்சி ஸ்டுடியோ" : "Practice Studio"}</Text>
+          <Text style={styles.phase7CardSub}>{language === "ta" ? "தினசரி சவால்கள்" : "Daily Challenges"}</Text>
+        </Pressable>
+
+        <Pressable
+          onPress={() => router.push("/assistant/index" as any)}
+          style={({ pressed }) => [styles.phase7Card, { width: studioCardWidth as any }, pressed && styles.pressed]}
+        >
+          <Text style={styles.phase7CardIcon}>🤖</Text>
+          <Text style={styles.phase7CardTitle}>{language === "ta" ? "AI வழிகாட்டி" : "AI Assistant"}</Text>
+          <Text style={styles.phase7CardSub}>{language === "ta" ? "மாதிரி ஆய்வு & அடுக்குகள்" : "Reference Guidance"}</Text>
+        </Pressable>
+
+        <Pressable
+          onPress={() => router.push("/comparison/index" as any)}
+          style={({ pressed }) => [styles.phase7Card, { width: studioCardWidth as any }, pressed && styles.pressed]}
+        >
+          <Text style={styles.phase7CardIcon}>⚖️</Text>
+          <Text style={styles.phase7CardTitle}>{language === "ta" ? "வரைதல் ஒப்பீடு" : "Comparison"}</Text>
+          <Text style={styles.phase7CardSub}>{language === "ta" ? "அமைப்பு & வடிவ கருத்து" : "Align & Compare"}</Text>
+        </Pressable>
+      </View>
 
       {/* 27 Studio Tools & Assistants with Category Tabs */}
       <SectionHeading
@@ -251,7 +315,7 @@ export default function HomeScreen() {
               onPress={() => openTool(feature.id)}
               style={({ pressed }) => [
                 styles.toolCard,
-                { width: `${100 / columns - (columns === 2 ? 1.7 : columns === 3 ? 1.4 : 1.1)}%` },
+                { width: columns === 1 ? "100%" : `${100 / columns - (columns === 2 ? 1.7 : columns === 3 ? 1.4 : 1.1)}%` },
                 pressed && styles.pressed,
               ]}
             >
@@ -386,4 +450,32 @@ const styles = StyleSheet.create({
   toolDetail: { color: colors.muted, fontSize: 11, lineHeight: 16, marginTop: 4, paddingRight: 8 },
   toolArrow: { position: "absolute", right: 14, bottom: 12, color: colors.clay, fontSize: 17 },
   pressed: { opacity: 0.78 },
+  phase7StudioRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+    marginBottom: 16,
+  },
+  phase7Card: {
+    width: "48%",
+    backgroundColor: colors.paper,
+    borderRadius: 16,
+    padding: 13,
+    borderWidth: 1,
+    borderColor: colors.line,
+    gap: 3,
+  },
+  phase7CardIcon: {
+    fontSize: 22,
+    marginBottom: 4,
+  },
+  phase7CardTitle: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: colors.ink,
+  },
+  phase7CardSub: {
+    fontSize: 11,
+    color: colors.muted,
+  },
 });

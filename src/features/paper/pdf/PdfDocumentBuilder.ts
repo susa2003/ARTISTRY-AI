@@ -332,7 +332,8 @@ export function buildCalibratedPdf(options: PdfDocumentOptions): PdfBuildResult 
     xref += String(offsets[i]).padStart(10, "0") + " 00000 n \n";
   }
 
-  const trailer = `trailer\n<<\n  /Size ${objects.length + 1}\n  /Root 1 0 R\n  /Info <<\n    /Producer (ARTISTRY AI Traditional Companion)\n    /CreationDate (D:${new Date().toISOString().replace(/[-:T]/g, "").slice(0, 14)}Z)\n  >>\n>>\nstartxref\n${xrefOffset}\n%%EOF\n`;
+  const formattedDate = new Date().toISOString().split(".")[0].replace(/\D/g, "").slice(0, 14);
+  const trailer = `trailer\n<<\n  /Size ${objects.length + 1}\n  /Root 1 0 R\n  /Info <<\n    /Producer (ARTISTRY AI Traditional Companion)\n    /CreationDate (D:${formattedDate}Z)\n  >>\n>>\nstartxref\n${xrefOffset}\n%%EOF\n`;
 
   const fullPdf = header + objects.join("") + xref + trailer;
   const base64 = binaryStringToBase64(fullPdf);

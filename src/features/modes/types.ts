@@ -28,6 +28,11 @@ export interface LessonStep {
   diagramType?: DiagramType;
 }
 
+export interface CommonMistake {
+  mistake: string;
+  prevention: string;
+}
+
 export interface CurriculumLesson {
   id: string;
   level: number;
@@ -43,6 +48,13 @@ export interface CurriculumLesson {
   practiceActivity: string;
   completionCriteria: string;
   recommendedOverlay?: "grid" | "loomis" | "reilly" | "bargue" | "perspective" | "anatomy" | "shading" | "plumb" | "measurement" | "tracing";
+
+  // Phase 7A: Pedagogical Lesson Enhancements
+  requiredMaterials?: string[];
+  referenceImageUrl?: string;
+  commonMistakes?: CommonMistake[];
+  selfAssessmentChecklist?: string[];
+  physicalPaperGuidance?: string;
 }
 
 export interface CurriculumLevel {

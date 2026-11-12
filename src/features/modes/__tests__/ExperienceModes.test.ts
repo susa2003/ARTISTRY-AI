@@ -178,6 +178,24 @@ describe("Phase 5: Beginner & Professional Experience Modes", () => {
         });
       });
     });
+
+    it("should ensure every lesson includes physical materials, paper guidance, common mistakes, and self-assessment checklist (Sub-Phase 7A)", () => {
+      const all = getAllLessons();
+      all.forEach((lesson) => {
+        expect(lesson.requiredMaterials).toBeDefined();
+        expect(lesson.requiredMaterials!.length).toBeGreaterThanOrEqual(3);
+        expect(lesson.physicalPaperGuidance).toBeDefined();
+        expect(lesson.physicalPaperGuidance!.trim().length).toBeGreaterThan(20);
+        expect(lesson.commonMistakes).toBeDefined();
+        expect(lesson.commonMistakes!.length).toBeGreaterThanOrEqual(2);
+        lesson.commonMistakes!.forEach((m) => {
+          expect(m.mistake.trim().length).toBeGreaterThan(5);
+          expect(m.prevention.trim().length).toBeGreaterThan(5);
+        });
+        expect(lesson.selfAssessmentChecklist).toBeDefined();
+        expect(lesson.selfAssessmentChecklist!.length).toBeGreaterThanOrEqual(3);
+      });
+    });
   });
 
   describe("3. Lesson Navigation Helpers", () => {

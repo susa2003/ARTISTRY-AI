@@ -21,7 +21,10 @@ import {
 import { router } from "expo-router";
 import type { CurriculumLesson } from "./types";
 import { getNextLesson, getPreviousLesson } from "./curriculumData";
-import { useAppStore } from "../../state/appStore";
+import { createId, useAppStore } from "../../state/appStore";
+import { OVERLAY_REGISTRY } from "../overlays/OverlayRegistry";
+import type { OverlayType } from "../../domain/overlayTypes";
+import { useResponsiveLayout } from "../../components/AppUI";
 import * as database from "../../storage/database";
 
 interface BeginnerLessonModalProps {
@@ -43,12 +46,23 @@ export function BeginnerLessonModal({
   const setLessonCompleted = useAppStore((state) => state.setLessonCompleted);
   const setActiveLessonId = useAppStore((state) => state.setActiveLessonId);
   const createProject = useAppStore((state) => state.createProject);
+  const addOverlay = useAppStore((state) => state.addOverlay);
+  const saveCurrentProject = useAppStore((state) => state.saveCurrentProject);
+  const { isSmallPhone } = useResponsiveLayout();
 
   const isCompleted = Boolean(lessonProgress[lesson.id]);
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
+  const [checkedItems, setCheckedItems] = useState<Record<number, boolean>>({});
+  const [resumedBannerVisible, setResumedBannerVisible] = useState(false);
+  const [isLaunchingStudio, setIsLaunchingStudio] = useState(false);
   const steps = lesson.steps;
   const totalSteps = steps.length;
   const currentStep = steps[currentStepIndex] ?? steps[0]!;
+
+  // Reset checked checklist when lesson changes
+  useEffect(() => {
+    setCheckedItems({});
+  }, [lesson?.id]);
 
   // Load saved step progress from SQLite on mount or when lesson changes
   useEffect(() => {
@@ -58,8 +72,12 @@ export function BeginnerLessonModal({
         const savedStep = await database.getLessonStepProgress(lesson!.id);
         if (mounted && savedStep >= 1 && savedStep <= totalSteps) {
           setCurrentStepIndex(savedStep - 1);
+          if (savedStep > 1) {
+            setResumedBannerVisible(true);
+          }
         } else if (mounted) {
           setCurrentStepIndex(0);
+          setResumedBannerVisible(false);
         }
         await setActiveLessonId(lesson!.id);
       } catch {
@@ -91,12 +109,26 @@ export function BeginnerLessonModal({
   };
 
   const handlePracticeInStudio = async () => {
-    onClose();
+    if (isLaunchingStudio) return;
+    setIsLaunchingStudio(true);
     try {
       const projectId = await createProject(null, `Practice: ${lesson.title}`);
+      if (lesson.recommendedOverlay) {
+        const overlayKey = lesson.recommendedOverlay === "plumb" ? "measurement" : lesson.recommendedOverlay;
+        const descriptor = OVERLAY_REGISTRY[overlayKey as OverlayType];
+        if (descriptor) {
+          const overlay = descriptor.createDefault(createId(), 1);
+          addOverlay(overlay);
+          await saveCurrentProject();
+        }
+      }
+      onClose();
       router.push(`/reference-studio/${projectId}`);
     } catch {
+      onClose();
       router.push("/reference");
+    } finally {
+      setIsLaunchingStudio(false);
     }
   };
 
@@ -142,6 +174,18 @@ export function BeginnerLessonModal({
           </View>
 
           <ScrollView style={styles.body} contentContainerStyle={styles.bodyContent} showsVerticalScrollIndicator={false}>
+            {/* Resumed Banner */}
+            {resumedBannerVisible && (
+              <View style={styles.resumedBanner}>
+                <Text style={styles.resumedBannerText}>
+                  📍 Resumed from Step {currentStepIndex + 1} of {totalSteps}
+                </Text>
+                <Pressable onPress={() => setResumedBannerVisible(false)}>
+                  <Text style={styles.resumedBannerDismiss}>✕</Text>
+                </Pressable>
+              </View>
+            )}
+
             {/* Title & Objective Card */}
             <View style={styles.titleCard}>
               <Text style={styles.lessonTitle}>{lesson.title}</Text>
@@ -150,6 +194,9 @@ export function BeginnerLessonModal({
               <View style={styles.metaRow}>
                 <Text style={styles.metaBadge}>⏱ {lesson.estimatedMinutes} min</Text>
                 <Text style={styles.metaBadge}>📂 {lesson.category.toUpperCase()}</Text>
+                {lesson.recommendedOverlay && (
+                  <Text style={styles.metaBadgeOverlay}>🎯 {lesson.recommendedOverlay.toUpperCase()} GUIDE</Text>
+                )}
                 {isCompleted && (
                   <View style={styles.completedBadge}>
                     <Text style={styles.completedBadgeText}>✓ COMPLETED</Text>
@@ -162,6 +209,32 @@ export function BeginnerLessonModal({
                 <Text style={styles.objectiveText}>{lesson.objective}</Text>
               </View>
             </View>
+
+            {/* Required Materials */}
+            {lesson.requiredMaterials && lesson.requiredMaterials.length > 0 && (
+              <View style={styles.sectionCard}>
+                <Text style={styles.sectionTitle}>Required Materials</Text>
+                <View style={styles.materialsPillContainer}>
+                  {lesson.requiredMaterials.map((mat, i) => (
+                    <View key={i} style={styles.materialPill}>
+                      <Text style={styles.materialPillIcon}>✏️</Text>
+                      <Text style={styles.materialPillText}>{mat}</Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            )}
+
+            {/* Physical Paper Guidance */}
+            {lesson.physicalPaperGuidance && (
+              <View style={styles.paperGuidanceCard}>
+                <View style={styles.paperGuidanceHeader}>
+                  <Text style={styles.paperGuidanceIcon}>📄</Text>
+                  <Text style={styles.paperGuidanceTitle}>Physical Paper & Posture</Text>
+                </View>
+                <Text style={styles.paperGuidanceText}>{lesson.physicalPaperGuidance}</Text>
+              </View>
+            )}
 
             {/* Explanation */}
             <View style={styles.sectionCard}>
@@ -186,14 +259,20 @@ export function BeginnerLessonModal({
                 </Text>
                 <View style={styles.stepDots}>
                   {steps.map((_, i) => (
-                    <View
+                    <Pressable
                       key={i}
-                      style={[
-                        styles.stepDot,
-                        i === currentStepIndex && styles.stepDotActive,
-                        i < currentStepIndex && styles.stepDotPassed,
-                      ]}
-                    />
+                      onPress={() => void handleStepChange(i)}
+                      hitSlop={8}
+                      accessibilityLabel={`Go to Step ${i + 1}`}
+                    >
+                      <View
+                        style={[
+                          styles.stepDot,
+                          i === currentStepIndex && styles.stepDotActive,
+                          i < currentStepIndex && styles.stepDotPassed,
+                        ]}
+                      />
+                    </Pressable>
                   ))}
                 </View>
               </View>
@@ -223,7 +302,7 @@ export function BeginnerLessonModal({
                   accessibilityLabel="Previous Step"
                 >
                   <Text style={[styles.navBtnText, currentStepIndex === 0 && styles.navBtnTextDisabled]}>
-                    ‹ Previous Step
+                    {isSmallPhone ? "‹ Prev" : "‹ Previous Step"}
                   </Text>
                 </Pressable>
 
@@ -242,7 +321,7 @@ export function BeginnerLessonModal({
                     accessibilityLabel="Next Step"
                   >
                     <Text style={[styles.navBtnText, styles.navBtnTextPrimary]}>
-                      Next Step ›
+                      {isSmallPhone ? "Next ›" : "Next Step ›"}
                     </Text>
                   </Pressable>
                 ) : (
@@ -262,20 +341,87 @@ export function BeginnerLessonModal({
               </View>
             </View>
 
+            {/* Common Mistakes to Avoid */}
+            {lesson.commonMistakes && lesson.commonMistakes.length > 0 && (
+              <View style={styles.sectionCard}>
+                <Text style={styles.sectionTitle}>Common Mistakes to Avoid</Text>
+                <View style={styles.mistakesList}>
+                  {lesson.commonMistakes.map((item, i) => (
+                    <View key={i} style={styles.mistakeItem}>
+                      <View style={styles.mistakeRow}>
+                        <Text style={styles.mistakeIcon}>⚠️</Text>
+                        <Text style={styles.mistakeText}>{item.mistake}</Text>
+                      </View>
+                      <View style={styles.preventionRow}>
+                        <Text style={styles.preventionIcon}>🛡️</Text>
+                        <Text style={styles.preventionText}>{item.prevention}</Text>
+                      </View>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            )}
+
             {/* Practice Activity Card */}
             <View style={styles.sectionCard}>
               <Text style={styles.sectionTitle}>Practice Activity</Text>
               <Text style={styles.practiceText}>{lesson.practiceActivity}</Text>
 
               <Pressable
+                disabled={isLaunchingStudio}
                 onPress={() => void handlePracticeInStudio()}
-                style={({ pressed }) => [styles.studioActionBtn, pressed && styles.pressed]}
+                style={({ pressed }) => [styles.studioActionBtn, isLaunchingStudio && styles.disabled, pressed && styles.pressed]}
                 accessibilityLabel="Practice in Reference Studio"
               >
                 <Text style={styles.studioActionBtnIcon}>✎</Text>
-                <Text style={styles.studioActionBtnText}>Practice in Reference Studio</Text>
+                <Text style={styles.studioActionBtnText}>
+                  {isLaunchingStudio ? "Preparing Workspace…" : "Practice in Reference Studio"}
+                </Text>
               </Pressable>
+
+              {lesson.recommendedOverlay && (
+                <View style={styles.recommendedOverlayNotice}>
+                  <Text style={styles.recommendedOverlayNoticeIcon}>🎯</Text>
+                  <Text style={styles.recommendedOverlayNoticeText}>
+                    Recommended overlay: <Text style={{ fontWeight: "700" }}>{lesson.recommendedOverlay.toUpperCase()}</Text> tool in Reference Studio
+                  </Text>
+                </View>
+              )}
             </View>
+
+            {/* Interactive Self-Assessment Checklist */}
+            {lesson.selfAssessmentChecklist && lesson.selfAssessmentChecklist.length > 0 && (
+              <View style={styles.sectionCard}>
+                <View style={styles.checklistHeaderRow}>
+                  <Text style={styles.sectionTitle}>Self-Assessment Checklist</Text>
+                  <Text style={styles.checklistCount}>
+                    {Object.values(checkedItems).filter(Boolean).length}/{lesson.selfAssessmentChecklist.length} checked
+                  </Text>
+                </View>
+                <Text style={styles.checklistSub}>
+                  Verify your physical paper drawing against these standards:
+                </Text>
+                <View style={styles.checklistItems}>
+                  {lesson.selfAssessmentChecklist.map((item, idx) => {
+                    const checked = Boolean(checkedItems[idx]);
+                    return (
+                      <Pressable
+                        key={idx}
+                        onPress={() => setCheckedItems((prev) => ({ ...prev, [idx]: !prev[idx] }))}
+                        style={[styles.checklistItem, checked && styles.checklistItemActive]}
+                      >
+                        <View style={[styles.checkbox, checked && styles.checkboxActive]}>
+                          {checked && <Text style={styles.checkmark}>✓</Text>}
+                        </View>
+                        <Text style={[styles.checklistText, checked && styles.checklistTextActive]}>
+                          {item}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </View>
+            )}
 
             {/* Completion Criteria & Mark Complete Button */}
             <View style={styles.sectionCard}>
@@ -325,6 +471,9 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "rgba(10, 13, 11, 0.75)",
     justifyContent: "flex-end",
+  },
+  disabled: {
+    opacity: 0.5,
   },
   sheet: {
     backgroundColor: "#161B18",
@@ -688,6 +837,215 @@ const styles = StyleSheet.create({
   footerNavBtnText: {
     fontSize: 12,
     color: "#8B9A90",
+    fontWeight: "600",
+  },
+  resumedBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#22352B",
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: "#3A5C47",
+    marginBottom: 4,
+  },
+  resumedBannerText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#6CD498",
+  },
+  resumedBannerDismiss: {
+    fontSize: 13,
+    color: "#8B9A90",
+    fontWeight: "700",
+    paddingHorizontal: 4,
+  },
+  metaBadgeOverlay: {
+    fontSize: 10,
+    fontWeight: "800",
+    color: "#6CD498",
+    backgroundColor: "#1F382B",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: "#305A43",
+  },
+  materialsPillContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginTop: 4,
+  },
+  materialPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: "#171F1A",
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderWidth: 1,
+    borderColor: "#28382F",
+  },
+  materialPillIcon: {
+    fontSize: 12,
+  },
+  materialPillText: {
+    fontSize: 12,
+    color: "#C5D4CB",
+    fontWeight: "600",
+  },
+  paperGuidanceCard: {
+    backgroundColor: "#20281F",
+    borderRadius: 14,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: "#3A4A35",
+    gap: 6,
+  },
+  paperGuidanceHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  paperGuidanceIcon: {
+    fontSize: 16,
+  },
+  paperGuidanceTitle: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: "#D0DCD3",
+  },
+  paperGuidanceText: {
+    fontSize: 13,
+    color: "#C0CEBE",
+    lineHeight: 18,
+  },
+  mistakesList: {
+    gap: 10,
+    marginTop: 4,
+  },
+  mistakeItem: {
+    backgroundColor: "#1A221C",
+    borderRadius: 10,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: "#2D3B31",
+    gap: 6,
+  },
+  mistakeRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8,
+  },
+  mistakeIcon: {
+    fontSize: 14,
+    marginTop: 1,
+  },
+  mistakeText: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#F0A880",
+    lineHeight: 18,
+  },
+  preventionRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8,
+    paddingLeft: 2,
+  },
+  preventionIcon: {
+    fontSize: 12,
+    marginTop: 2,
+  },
+  preventionText: {
+    flex: 1,
+    fontSize: 12,
+    color: "#B4C4BA",
+    lineHeight: 17,
+  },
+  recommendedOverlayNotice: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "#1A2720",
+    borderRadius: 8,
+    padding: 10,
+    marginTop: 10,
+    borderWidth: 1,
+    borderColor: "#2A4535",
+  },
+  recommendedOverlayNoticeIcon: {
+    fontSize: 14,
+  },
+  recommendedOverlayNoticeText: {
+    flex: 1,
+    fontSize: 12,
+    color: "#8FA396",
+  },
+  checklistHeaderRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  checklistCount: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: "#6CD498",
+  },
+  checklistSub: {
+    fontSize: 12,
+    color: "#8FA396",
+  },
+  checklistItems: {
+    gap: 8,
+    marginTop: 4,
+  },
+  checklistItem: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 10,
+    backgroundColor: "#171F1A",
+    borderRadius: 10,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: "#28382E",
+  },
+  checklistItemActive: {
+    backgroundColor: "#1C2B22",
+    borderColor: "#355943",
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 6,
+    borderWidth: 1.5,
+    borderColor: "#4A6153",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 1,
+  },
+  checkboxActive: {
+    backgroundColor: "#28594B",
+    borderColor: "#6CD498",
+  },
+  checkmark: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "900",
+  },
+  checklistText: {
+    flex: 1,
+    fontSize: 13,
+    color: "#A2B4A8",
+    lineHeight: 18,
+  },
+  checklistTextActive: {
+    color: "#F6F5EE",
     fontWeight: "600",
   },
 });

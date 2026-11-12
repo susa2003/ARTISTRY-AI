@@ -22,6 +22,7 @@ import { DRAWING_CURRICULUM, getAllLessons, getLessonById } from "./curriculumDa
 import type { CurriculumLesson, CurriculumLevel } from "./types";
 import { BeginnerLessonModal } from "./BeginnerLessonModal";
 import { BeginnerDrawingGuideModal } from "./BeginnerDrawingGuideModal";
+import { useResponsiveLayout } from "../../components/AppUI";
 import { useAppStore } from "../../state/appStore";
 
 export interface BeginnerDashboardProps {
@@ -34,6 +35,9 @@ export function BeginnerDashboard({ onOpenModeSelector }: BeginnerDashboardProps
   const streak = useAppStore((state) => state.streak);
   const projects = useAppStore((state) => state.projects);
   const createProject = useAppStore((state) => state.createProject);
+
+  const { isSmallPhone, isTablet } = useResponsiveLayout();
+  const studioTileWidth = isSmallPhone ? "100%" : isTablet ? "23.5%" : "48%";
 
   const [selectedLesson, setSelectedLesson] = useState<CurriculumLesson | null>(null);
   const [guideModalOpen, setGuideModalOpen] = useState(false);
@@ -72,12 +76,31 @@ export function BeginnerDashboard({ onOpenModeSelector }: BeginnerDashboardProps
     setSelectedLesson(currentOrNextLesson);
   };
 
+  const [isCreatingProject, setIsCreatingProject] = useState(false);
+
   const handleOpenNewDrawing = async () => {
+    if (isCreatingProject) return;
+    setIsCreatingProject(true);
     try {
       const id = await createProject(null, "Beginner Practice Drawing");
+      router.push(`/studio/${id}`);
+    } catch {
+      router.push("/reference");
+    } finally {
+      setIsCreatingProject(false);
+    }
+  };
+
+  const handleOpenReferenceStudy = async () => {
+    if (isCreatingProject) return;
+    setIsCreatingProject(true);
+    try {
+      const id = await createProject(null, "Beginner Reference Study");
       router.push(`/reference-studio/${id}`);
     } catch {
       router.push("/reference");
+    } finally {
+      setIsCreatingProject(false);
     }
   };
 
@@ -117,10 +140,10 @@ export function BeginnerDashboard({ onOpenModeSelector }: BeginnerDashboardProps
           {currentOrNextLesson.objective}
         </Text>
 
-        <View style={styles.heroActionRow}>
+        <View style={[styles.heroActionRow, isSmallPhone && { flexDirection: "column", alignItems: "stretch" }]}>
           <Pressable
             onPress={handleStartOrContinue}
-            style={({ pressed }) => [styles.heroBtn, pressed && styles.pressed]}
+            style={({ pressed }) => [styles.heroBtn, isSmallPhone && { alignItems: "center" }, pressed && styles.pressed]}
             accessibilityLabel="Start or continue active lesson"
           >
             <Text style={styles.heroBtnText}>
@@ -130,7 +153,7 @@ export function BeginnerDashboard({ onOpenModeSelector }: BeginnerDashboardProps
 
           <Pressable
             onPress={() => setGuideModalOpen(true)}
-            style={({ pressed }) => [styles.guideBtn, pressed && styles.pressed]}
+            style={({ pressed }) => [styles.guideBtn, isSmallPhone && { alignItems: "center" }, pressed && styles.pressed]}
             accessibilityLabel="Open Beginner Drawing Guide"
           >
             <Text style={styles.guideBtnText}>📖 Drawing Guide</Text>
@@ -174,6 +197,55 @@ export function BeginnerDashboard({ onOpenModeSelector }: BeginnerDashboardProps
             <Text style={styles.statValue}>{totalLessons - completedCount}</Text>
             <Text style={styles.statLabel}>Remaining</Text>
           </View>
+        </View>
+      </View>
+
+      {/* PHASE 7: TRADITIONAL LEARNING & AI COMPANION STUDIOS */}
+      <View style={styles.studiosHubCard}>
+        <View style={styles.studiosHubHeader}>
+          <Text style={styles.studiosHubTitle}>Traditional Learning & AI Companion</Text>
+          <Text style={styles.studiosHubSub}>Dedicated studios for practice, analysis, and feedback</Text>
+        </View>
+        <View style={styles.studiosGrid}>
+          <Pressable
+            onPress={() => router.push("/learning/index" as any)}
+            style={({ pressed }) => [styles.studioTile, { width: studioTileWidth as any }, pressed && styles.pressed]}
+            accessibilityLabel="Open Learning Studio"
+          >
+            <Text style={styles.studioTileIcon}>🎓</Text>
+            <Text style={styles.studioTileTitle}>Learning Studio</Text>
+            <Text style={styles.studioTileDetail}>40 Progressive Lessons</Text>
+          </Pressable>
+
+          <Pressable
+            onPress={() => router.push("/practice/index" as any)}
+            style={({ pressed }) => [styles.studioTile, { width: studioTileWidth as any }, pressed && styles.pressed]}
+            accessibilityLabel="Open Practice Studio"
+          >
+            <Text style={styles.studioTileIcon}>⏱️</Text>
+            <Text style={styles.studioTileTitle}>Practice Studio</Text>
+            <Text style={styles.studioTileDetail}>Daily Timed Challenges</Text>
+          </Pressable>
+
+          <Pressable
+            onPress={() => router.push("/assistant/index" as any)}
+            style={({ pressed }) => [styles.studioTile, { width: studioTileWidth as any }, pressed && styles.pressed]}
+            accessibilityLabel="Open AI Drawing Assistant"
+          >
+            <Text style={styles.studioTileIcon}>🤖</Text>
+            <Text style={styles.studioTileTitle}>AI Assistant</Text>
+            <Text style={styles.studioTileDetail}>Reference Guidance</Text>
+          </Pressable>
+
+          <Pressable
+            onPress={() => router.push("/comparison/index" as any)}
+            style={({ pressed }) => [styles.studioTile, { width: studioTileWidth as any }, pressed && styles.pressed]}
+            accessibilityLabel="Open Drawing Comparison"
+          >
+            <Text style={styles.studioTileIcon}>⚖️</Text>
+            <Text style={styles.studioTileTitle}>Comparison</Text>
+            <Text style={styles.studioTileDetail}>Compare Physical Drawings</Text>
+          </Pressable>
         </View>
       </View>
 
@@ -265,18 +337,27 @@ export function BeginnerDashboard({ onOpenModeSelector }: BeginnerDashboardProps
 
       {/* 4. MY PROJECTS RECENT ROW */}
       <View style={styles.sectionHeaderRow}>
-        <View>
+        <View style={{ flex: 1 }}>
           <Text style={styles.sectionMainTitle}>My Practice Drawings</Text>
           <Text style={styles.sectionMainSub}>Your saved drawings and studio exercises</Text>
         </View>
 
-        <Pressable
-          onPress={handleOpenNewDrawing}
-          style={styles.newDrawingBtn}
-          accessibilityLabel="Start a new blank drawing"
-        >
-          <Text style={styles.newDrawingBtnText}>＋ New Drawing</Text>
-        </Pressable>
+        <View style={{ flexDirection: "row", gap: 6 }}>
+          <Pressable
+            onPress={handleOpenNewDrawing}
+            style={styles.newDrawingBtn}
+            accessibilityLabel="Start a new blank drawing in Free Drawing Studio"
+          >
+            <Text style={styles.newDrawingBtnText}>＋ Draw</Text>
+          </Pressable>
+          <Pressable
+            onPress={handleOpenReferenceStudy}
+            style={[styles.newDrawingBtn, styles.newRefBtn]}
+            accessibilityLabel="Start a new reference study in Reference Studio"
+          >
+            <Text style={[styles.newDrawingBtnText, styles.newRefBtnText]}>＋ Study</Text>
+          </Pressable>
+        </View>
       </View>
 
       {projects.length === 0 ? (
@@ -286,12 +367,22 @@ export function BeginnerDashboard({ onOpenModeSelector }: BeginnerDashboardProps
           <Text style={styles.emptyProjectsText}>
             Start a lesson or open a blank canvas to begin applying your traditional drawing foundations.
           </Text>
-          <Pressable
-            onPress={handleOpenNewDrawing}
-            style={styles.emptyStartBtn}
-          >
-            <Text style={styles.emptyStartBtnText}>Start Drawing Now</Text>
-          </Pressable>
+          <View style={{ flexDirection: "row", gap: 8, marginTop: 6 }}>
+            <Pressable
+              onPress={handleOpenNewDrawing}
+              style={styles.emptyStartBtn}
+              accessibilityLabel="Start Drawing in Free Drawing Studio"
+            >
+              <Text style={styles.emptyStartBtnText}>🎨 Free Drawing</Text>
+            </Pressable>
+            <Pressable
+              onPress={handleOpenReferenceStudy}
+              style={[styles.emptyStartBtn, { backgroundColor: "#2D3B33" }]}
+              accessibilityLabel="Start Reference Study"
+            >
+              <Text style={styles.emptyStartBtnText}>📐 Ref Study</Text>
+            </Pressable>
+          </View>
         </View>
       ) : (
         <ScrollView
@@ -300,23 +391,36 @@ export function BeginnerDashboard({ onOpenModeSelector }: BeginnerDashboardProps
           style={styles.projectScroll}
           contentContainerStyle={styles.projectScrollContent}
         >
-          {projects.slice(0, 6).map((proj) => (
-            <Pressable
-              key={proj.id}
-              onPress={() => router.push(`/reference-studio/${proj.id}`)}
-              style={({ pressed }) => [styles.projectCard, pressed && styles.pressed]}
-            >
-              <View style={styles.projectThumbPlaceholder}>
-                <Text style={styles.projectThumbIcon}>🖼️</Text>
-              </View>
-              <Text style={styles.projectName} numberOfLines={1}>
-                {proj.name}
-              </Text>
-              <Text style={styles.projectDate}>
-                {new Date(proj.updatedAt).toLocaleDateString()}
-              </Text>
-            </Pressable>
-          ))}
+          {projects.slice(0, 6).map((proj) => {
+            const isReference = Boolean(proj.referenceUri);
+            return (
+              <Pressable
+                key={proj.id}
+                onPress={() => {
+                  if (isReference) {
+                    router.push(`/reference-studio/${proj.id}`);
+                  } else {
+                    router.push(`/studio/${proj.id}`);
+                  }
+                }}
+                style={({ pressed }) => [styles.projectCard, pressed && styles.pressed]}
+                accessibilityLabel={`Open ${proj.name} in ${isReference ? "Reference Studio" : "Free Drawing Studio"}`}
+              >
+                <View style={styles.projectThumbPlaceholder}>
+                  <Text style={styles.projectThumbIcon}>{isReference ? "📐" : "🎨"}</Text>
+                  <View style={[styles.projectTypeTag, isReference ? styles.refTag : styles.drawTag]}>
+                    <Text style={styles.projectTypeTagText}>{isReference ? "Ref" : "Draw"}</Text>
+                  </View>
+                </View>
+                <Text style={styles.projectName} numberOfLines={1}>
+                  {proj.name}
+                </Text>
+                <Text style={styles.projectDate}>
+                  {new Date(proj.updatedAt).toLocaleDateString()}
+                </Text>
+              </Pressable>
+            );
+          })}
         </ScrollView>
       )}
 
@@ -541,7 +645,7 @@ const styles = StyleSheet.create({
   },
   newDrawingBtn: {
     backgroundColor: "#202C25",
-    paddingHorizontal: 12,
+    paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 8,
     borderWidth: 1,
@@ -551,6 +655,13 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "700",
     color: "#5EB689",
+  },
+  newRefBtn: {
+    backgroundColor: "#242A27",
+    borderColor: "#33453B",
+  },
+  newRefBtnText: {
+    color: "#92B8A4",
   },
   levelCard: {
     backgroundColor: "#18201C",
@@ -733,6 +844,26 @@ const styles = StyleSheet.create({
     backgroundColor: "#202A24",
     justifyContent: "center",
     alignItems: "center",
+    position: "relative",
+  },
+  projectTypeTag: {
+    position: "absolute",
+    bottom: 4,
+    right: 4,
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderRadius: 4,
+  },
+  drawTag: {
+    backgroundColor: "rgba(40, 89, 75, 0.8)",
+  },
+  refTag: {
+    backgroundColor: "rgba(56, 82, 107, 0.8)",
+  },
+  projectTypeTagText: {
+    fontSize: 9,
+    fontWeight: "700",
+    color: "#E2ECE5",
   },
   projectThumbIcon: {
     fontSize: 24,
@@ -745,5 +876,52 @@ const styles = StyleSheet.create({
   projectDate: {
     fontSize: 10,
     color: "#74847A",
+  },
+  studiosHubCard: {
+    backgroundColor: "#19201C",
+    borderRadius: 18,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: "#26322B",
+    gap: 12,
+  },
+  studiosHubHeader: {
+    gap: 2,
+  },
+  studiosHubTitle: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#F6F5EE",
+  },
+  studiosHubSub: {
+    fontSize: 12,
+    color: "#8B9A90",
+  },
+  studiosGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+  },
+  studioTile: {
+    width: "48%",
+    backgroundColor: "#202A24",
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: "#2B3C32",
+    gap: 3,
+  },
+  studioTileIcon: {
+    fontSize: 20,
+    marginBottom: 2,
+  },
+  studioTileTitle: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#E2ECE5",
+  },
+  studioTileDetail: {
+    fontSize: 11,
+    color: "#7E8F84",
   },
 });
